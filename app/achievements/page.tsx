@@ -3,10 +3,21 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Trophy, Award, Target, Calendar, Clock, Wheat, Zap, Star } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
 import { checkAchievements, allAchievements } from '@/lib/achievements';
+
+// Simple progress component to avoid build issues
+function SimpleProgress({ value, className }: { value: number; className?: string }) {
+  return (
+    <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
+      <div 
+        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+      />
+    </div>
+  );
+}
 
 export default function AchievementsPage() {
   const { entries, achievements } = usePoopStore();
@@ -152,7 +163,7 @@ export default function AchievementsPage() {
                           <span className="text-gray-500">Progress</span>
                           <span className="text-gray-500">{Math.round(progressPercentage)}%</span>
                         </div>
-                        <Progress value={progressPercentage} className="h-2" />
+                        <SimpleProgress value={progressPercentage} className="h-2" />
                         <div className="text-xs text-gray-500">
                           🎯 {achievement.requirement}
                         </div>

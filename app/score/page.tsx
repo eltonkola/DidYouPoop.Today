@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Trophy, Target, Clock, Wheat, Smile } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
@@ -14,21 +13,50 @@ import { getScoreBadge, getScoreMessage } from '@/lib/utils';
 import { ConfettiCelebration } from '@/components/confetti-celebration';
 import { format } from 'date-fns';
 
+// Simple progress component to avoid build issues
+function SimpleProgress({ value, className }: { value: number; className?: string }) {
+  return (
+    <div className={`w-full bg-gray-200 rounded-full h-4 ${className}`}>
+      <div 
+        className="bg-blue-600 h-4 rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+      />
+    </div>
+  );
+}
+
 export default function ScorePage() {
   const router = useRouter();
   const { entries } = usePoopStore();
   const [latestEntry, setLatestEntry] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const entry = entries.find(e => e.date === today) || null;
-    setLatestEntry(entry);
-    
-    if (entry && entry.didPoop && entry.score > 70) {
-      setShowCelebration(true);
+    setMounted(true);
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const entry = entries.find(e => e.date === today) || null;
+      setLatestEntry(entry);
+      
+      if (entry && entry.didPoop && entry.score > 70) {
+        setShowCelebration(true);
+      }
+    } catch (error) {
+      console.error('Error loading entry:', error);
     }
   }, [entries]);
+
+  if (!mounted) {
+    return (
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/2 mx-auto mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!latestEntry) {
     return (
@@ -91,7 +119,7 @@ export default function ScorePage() {
                 {badge.title}
               </Badge>
               
-              <Progress 
+              <SimpleProgress 
                 value={score} 
                 className="w-full h-4"
               />
