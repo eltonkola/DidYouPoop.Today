@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { Navigation } from '@/components/navigation';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -47,7 +48,9 @@ export default function RootLayout({
           <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-amber-950 dark:via-orange-950 dark:to-yellow-950">
             <Navigation />
             <main className="container mx-auto px-4 py-8">
-              {children}
+              <AuthGuard>
+                {children}
+              </AuthGuard>
             </main>
           </div>
           <Toaster />

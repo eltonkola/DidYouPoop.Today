@@ -11,12 +11,15 @@ import { PoopPrompt } from '@/components/poop-prompt';
 import { QuickStats } from '@/components/quick-stats';
 import { RecentActivity } from '@/components/recent-activity';
 import { FiberTips } from '@/components/fiber-tips';
+import { PremiumBanner } from '@/components/premium/premium-banner';
 import { usePoopStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import { getTodaysEntry } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export default function Home() {
   const { entries, streak, achievements } = usePoopStore();
+  const { user } = useAuthStore();
   const [todaysEntry, setTodaysEntry] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -30,6 +33,8 @@ export default function Home() {
   if (!mounted) {
     return <div className="flex items-center justify-center min-h-[400px]">Loading...</div>;
   }
+
+  const isPremium = user?.subscription_tier === 'premium';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -56,6 +61,21 @@ export default function Home() {
           The fun and functional way to track your gut health with poop scoring, streaks, and achievements!
         </p>
 
+        {/* Welcome message for authenticated users */}
+        {user && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <span className="text-lg">Welcome back,</span>
+            <Badge variant="secondary" className="text-lg px-3 py-1">
+              {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+            </Badge>
+            {isPremium && (
+              <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">
+                Premium
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* Quick Stats Bar */}
         <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
           <Badge variant="secondary" className="px-4 py-2 text-lg">
@@ -74,6 +94,17 @@ export default function Home() {
       </motion.div>
 
       <Separator />
+
+      {/* Premium Banner for Free Users */}
+      {!isPremium && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <PremiumBanner />
+        </motion.div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -13,9 +13,13 @@ import {
   Settings, 
   Menu,
   Plus,
-  BarChart3
+  BarChart3,
+  LogIn
 } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { UserMenu } from '@/components/auth/user-menu';
+import { AuthModal } from '@/components/auth/auth-modal';
 import { cn } from '@/lib/utils';
 
 const navigation = [
@@ -29,7 +33,9 @@ const navigation = [
 export function Navigation() {
   const pathname = usePathname();
   const { streak, achievements } = usePoopStore();
+  const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const NavLink = ({ item, mobile = false }: { item: typeof navigation[0], mobile?: boolean }) => {
     const isActive = pathname === item.href;
@@ -76,49 +82,90 @@ export function Navigation() {
             ))}
           </nav>
 
-          {/* Streak Badge */}
-          <div className="hidden sm:flex items-center gap-2">
-            {streak > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+          {/* Right side */}
+          <div className="flex items-center gap-4">
+            {/* Streak Badge */}
+            {user && streak > 0 && (
+              <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
                 <BarChart3 className="w-3 h-3" />
                 {streak} day streak
               </Badge>
             )}
-          </div>
 
-          {/* Mobile Navigation */}
-          <div className="md:hidden">
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-72">
-                <div className="flex flex-col gap-4 mt-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">💩</span>
-                    <span className="font-bold text-lg">DidYouPoop.Today</span>
+            {/* User Menu or Sign In */}
+            {user ? (
+              <UserMenu />
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAuthModal(true)}
+                className="hidden sm:flex items-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </Button>
+            )}
+
+            {/* Mobile Navigation */}
+            <div className="md:hidden">
+              <Sheet open={open} onOpenChange={setOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-72">
+                  <div className="flex flex-col gap-4 mt-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-2xl">💩</span>
+                      <span className="font-bold text-lg">DidYouPoop.Today</span>
+                    </div>
+                    
+                    {user ? (
+                      <>
+                        {streak > 0 && (
+                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                            <BarChart3 className="w-3 h-3" />
+                            {streak} day streak
+                          </Badge>
+                        )}
+                        
+                        <nav className="flex flex-col gap-2">
+                          {navigation.map((item) => (
+                            <NavLink key={item.name} item={item} mobile />
+                          ))}
+                        </nav>
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <Button 
+                          onClick={() => {
+                            setShowAuthModal(true);
+                            setOpen(false);
+                          }}
+                          className="w-full"
+                        >
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Sign In
+                        </Button>
+                        <p className="text-sm text-muted-foreground text-center">
+                          Sign in to track your poop journey!
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  
-                  {streak > 0 && (
-                    <Badge variant="secondary" className="flex items-center gap-1 w-fit">
-                      <BarChart3 className="w-3 h-3" />
-                      {streak} day streak
-                    </Badge>
-                  )}
-                  
-                  <nav className="flex flex-col gap-2">
-                    {navigation.map((item) => (
-                      <NavLink key={item.name} item={item} mobile />
-                    ))}
-                  </nav>
-                </div>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </header>
   );
 }
