@@ -96,7 +96,7 @@ export default function Home() {
       <Separator />
 
       {/* Premium Banner for Free Users */}
-      {!isPremium && (
+      {!user && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -62,9 +62,17 @@ export const useAuthStore = create<AuthStore>()(
         
         set({ loading: true });
         try {
-          const user = await authService.getCurrentUser();
-          set({ user, loading: false, initialized: true });
+          // Only try to get user if Supabase is configured
+          if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            const user = await authService.getCurrentUser();
+            set({ user, loading: false, initialized: true });
+          } else {
+            // No Supabase config - run in free mode
+            set({ user: null, loading: false, initialized: true });
+          }
         } catch (error) {
+          // Fail gracefully - app works without auth
+          console.log('Auth initialization failed, running in free mode');
           set({ user: null, loading: false, initialized: true });
         }
       },
@@ -80,14 +88,21 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-// Set up auth state listener
-supabase.auth.onAuthStateChange(async (event, session) => {
-  const { updateUser } = useAuthStore.getState();
-  
-  if (session?.user) {
-    const user = await authService.getCurrentUser();
-    updateUser(user);
-  } else {
-    updateUser(null);
-  }
-});
+// Set up auth state listener only if Supabase is configured
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    const { updateUser } = useAuthStore.getState();
+    
+    if (session?.user) {
+      try {
+        const user = await authService.getCurrentUser();
+        updateUser(user);
+      } catch (error) {
+        console.log('Error getting user:', error);
+        updateUser(null);
+      }
+    } else {
+      updateUser(null);
+    }
+  });
+}

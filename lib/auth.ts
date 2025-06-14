@@ -8,6 +8,8 @@ export interface AuthUser extends User {
 export const authService = {
   // Sign up with email and password
   async signUp(email: string, password: string, fullName?: string) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -28,7 +30,7 @@ export const authService = {
           id: data.user.id,
           email: data.user.email!,
           full_name: fullName || null,
-          subscription_tier: 'free',
+          subscription_tier: 'premium', // Default to premium for registered users
         });
 
       if (profileError) {
@@ -41,6 +43,8 @@ export const authService = {
 
   // Sign in with email and password
   async signIn(email: string, password: string) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -52,12 +56,16 @@ export const authService = {
 
   // Sign out
   async signOut() {
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
 
   // Get current user
   async getCurrentUser(): Promise<AuthUser | null> {
+    if (!supabase) return null;
+    
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) return null;
@@ -71,12 +79,14 @@ export const authService = {
 
     return {
       ...user,
-      subscription_tier: profile?.subscription_tier || 'free',
+      subscription_tier: profile?.subscription_tier || 'premium',
     };
   },
 
   // Get user profile
   async getUserProfile(userId: string) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -92,6 +102,8 @@ export const authService = {
     full_name?: string;
     avatar_url?: string;
   }) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { data, error } = await supabase
       .from('profiles')
       .update({
@@ -108,6 +120,8 @@ export const authService = {
 
   // Check if user is premium
   async isPremiumUser(userId: string): Promise<boolean> {
+    if (!supabase) return false;
+    
     const { data } = await supabase
       .from('profiles')
       .select('subscription_tier')

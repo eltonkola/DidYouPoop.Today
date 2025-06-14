@@ -85,7 +85,7 @@ export function Navigation() {
           {/* Right side */}
           <div className="flex items-center gap-4">
             {/* Streak Badge */}
-            {user && streak > 0 && (
+            {streak > 0 && (
               <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
                 <BarChart3 className="w-3 h-3" />
                 {streak} day streak
@@ -122,23 +122,23 @@ export function Navigation() {
                       <span className="font-bold text-lg">DidYouPoop.Today</span>
                     </div>
                     
-                    {user ? (
-                      <>
-                        {streak > 0 && (
-                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
-                            <BarChart3 className="w-3 h-3" />
-                            {streak} day streak
-                          </Badge>
-                        )}
-                        
-                        <nav className="flex flex-col gap-2">
-                          {navigation.map((item) => (
-                            <NavLink key={item.name} item={item} mobile />
-                          ))}
-                        </nav>
-                      </>
-                    ) : (
-                      <div className="space-y-4">
+                    {/* Always show navigation */}
+                    {streak > 0 && (
+                      <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                        <BarChart3 className="w-3 h-3" />
+                        {streak} day streak
+                      </Badge>
+                    )}
+                    
+                    <nav className="flex flex-col gap-2">
+                      {navigation.map((item) => (
+                        <NavLink key={item.name} item={item} mobile />
+                      ))}
+                    </nav>
+
+                    {/* Sign in button for mobile */}
+                    {!user && (
+                      <div className="mt-4 pt-4 border-t">
                         <Button 
                           onClick={() => {
                             setShowAuthModal(true);
@@ -147,10 +147,10 @@ export function Navigation() {
                           className="w-full"
                         >
                           <LogIn className="w-4 h-4 mr-2" />
-                          Sign In
+                          Sign In for Premium
                         </Button>
-                        <p className="text-sm text-muted-foreground text-center">
-                          Sign in to track your poop journey!
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Get cloud sync and premium features!
                         </p>
                       </div>
                     )}
