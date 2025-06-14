@@ -31,9 +31,13 @@ export const useAuthStore = create<AuthStore>()(
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
 
-          // Initialize RevenueCat with user ID
+          // Initialize RevenueCat with user ID (with error handling)
           if (user && isRevenueCatConfigured()) {
-            await initializeRevenueCat(user.id);
+            try {
+              await initializeRevenueCat(user.id);
+            } catch (error) {
+              console.error('Failed to initialize RevenueCat after sign in:', error);
+            }
           }
 
           // Load user data from cloud after successful sign in
@@ -57,9 +61,13 @@ export const useAuthStore = create<AuthStore>()(
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
 
-          // Initialize RevenueCat with user ID
+          // Initialize RevenueCat with user ID (with error handling)
           if (user && isRevenueCatConfigured()) {
-            await initializeRevenueCat(user.id);
+            try {
+              await initializeRevenueCat(user.id);
+            } catch (error) {
+              console.error('Failed to initialize RevenueCat after sign up:', error);
+            }
           }
 
           // Sync local data to cloud after successful sign up
@@ -113,9 +121,13 @@ export const useAuthStore = create<AuthStore>()(
             clearTimeout(timeoutId);
             set({ user, loading: false, initialized: true });
 
-            // Initialize RevenueCat if configured
+            // Initialize RevenueCat if configured (with error handling)
             if (isRevenueCatConfigured()) {
-              await initializeRevenueCat(user?.id);
+              try {
+                await initializeRevenueCat(user?.id);
+              } catch (error) {
+                console.error('Failed to initialize RevenueCat during auth init:', error);
+              }
             }
 
             // Load user data from cloud if authenticated
@@ -133,7 +145,11 @@ export const useAuthStore = create<AuthStore>()(
             
             // Still initialize RevenueCat for anonymous users if configured
             if (isRevenueCatConfigured()) {
-              await initializeRevenueCat();
+              try {
+                await initializeRevenueCat();
+              } catch (error) {
+                console.error('Failed to initialize RevenueCat in free mode:', error);
+              }
             }
           }
         } catch (error) {
@@ -144,7 +160,11 @@ export const useAuthStore = create<AuthStore>()(
           
           // Still try to initialize RevenueCat
           if (isRevenueCatConfigured()) {
-            await initializeRevenueCat();
+            try {
+              await initializeRevenueCat();
+            } catch (revenueCatError) {
+              console.error('Failed to initialize RevenueCat after auth failure:', revenueCatError);
+            }
           }
         }
       },
@@ -153,9 +173,11 @@ export const useAuthStore = create<AuthStore>()(
         const currentUser = get().user;
         set({ user });
 
-        // Initialize RevenueCat when user signs in
+        // Initialize RevenueCat when user signs in (with error handling)
         if (user && !currentUser && isRevenueCatConfigured()) {
-          initializeRevenueCat(user.id);
+          initializeRevenueCat(user.id).catch(error => {
+            console.error('Failed to initialize RevenueCat on user update:', error);
+          });
         }
 
         // If user just signed in, load their cloud data

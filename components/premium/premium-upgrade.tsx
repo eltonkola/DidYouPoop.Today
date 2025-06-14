@@ -7,24 +7,40 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { getOfferings, purchasePackage, isRevenueCatConfigured } from '@/lib/revenuecat';
+import { getOfferings, purchasePackage, isRevenueCatConfigured, isRevenueCatReady } from '@/lib/revenuecat';
 import { PurchasesOffering, PurchasesPackage } from '@revenuecat/purchases-js';
 import { toast } from 'sonner';
 
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [loadingOfferings, setLoadingOfferings] = useState(true);
   const [offerings, setOfferings] = useState<PurchasesOffering[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
 
   useEffect(() => {
-    loadOfferings();
+    // Wait a bit for RevenueCat to initialize, then load offerings
+    const timer = setTimeout(() => {
+      loadOfferings();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const loadOfferings = async () => {
-    if (!isRevenueCatConfigured()) return;
+    if (!isRevenueCatConfigured()) {
+      setLoadingOfferings(false);
+      return;
+    }
     
     try {
+      // Check if RevenueCat is ready
+      if (!isRevenueCatReady()) {
+        console.log('RevenueCat not ready yet, retrying...');
+        setTimeout(loadOfferings, 2000);
+        return;
+      }
+
       const availableOfferings = await getOfferings();
       setOfferings(availableOfferings);
       
@@ -34,12 +50,19 @@ export function PremiumUpgrade() {
       }
     } catch (error) {
       console.error('Failed to load offerings:', error);
+    } finally {
+      setLoadingOfferings(false);
     }
   };
 
   const handleUpgrade = async () => {
     if (!selectedPackage) {
       toast.error('Please select a subscription package');
+      return;
+    }
+
+    if (!isRevenueCatReady()) {
+      toast.error('Payment system not ready. Please try again in a moment.');
       return;
     }
 
@@ -105,7 +128,7 @@ export function PremiumUpgrade() {
     );
   }
 
-  if (offerings.length === 0) {
+  if (loadingOfferings) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-4">
@@ -116,6 +139,26 @@ export function PremiumUpgrade() {
           <p className="text-xl text-muted-foreground">
             Please wait while we load available subscription plans...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (offerings.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-6xl mb-4">
+            <AlertCircle className="w-16 h-16 text-yellow-600" />
+          </div>
+          <h1 className="text-4xl font-bold">No Premium Plans Available</h1>
+          <p className="text-xl text-muted-foreground">
+            Premium plans are not configured yet. Please check back later!
+          </p>
+          <Button onClick={loadOfferings} variant="outline">
+            <Loader2 className="w-4 h-4 mr-2" />
+            Retry Loading
+          </Button>
         </div>
       </div>
     );
@@ -210,7 +253,7 @@ export function PremiumUpgrade() {
 
       <Button
         onClick={handleUpgrade}
-        disabled={loading || !selectedPackage}
+        disabled={loading || !selectedPackage || !isRevenueCatReady()}
         size="lg"
         className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
       >
@@ -218,6 +261,11 @@ export function PremiumUpgrade() {
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Processing...
+          </>
+        ) : !isRevenueCatReady() ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Loading Payment System...
           </>
         ) : (
           <>
