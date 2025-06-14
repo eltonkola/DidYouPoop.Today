@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, XCircle, Plus, RotateCcw } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import { PoopEntry } from '@/lib/store';
 import { getMoodEmoji, formatDuration, getScoreBadge } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -20,12 +21,17 @@ interface PoopPromptProps {
 export function PoopPrompt({ todaysEntry }: PoopPromptProps) {
   const router = useRouter();
   const { deleteEntry } = usePoopStore();
+  const { user } = useAuthStore();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  const handleDeleteEntry = () => {
+  const handleDeleteEntry = async () => {
     if (todaysEntry) {
-      deleteEntry(todaysEntry.id);
-      setShowConfirmDelete(false);
+      try {
+        await deleteEntry(todaysEntry.id, user?.id);
+        setShowConfirmDelete(false);
+      } catch (error) {
+        console.error('Error deleting entry:', error);
+      }
     }
   };
 
@@ -44,6 +50,11 @@ export function PoopPrompt({ todaysEntry }: PoopPromptProps) {
           <p className="text-muted-foreground">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
+          {user && (
+            <Badge variant="secondary" className="mt-2">
+              Synced to Cloud ☁️
+            </Badge>
+          )}
         </CardHeader>
         
         <CardContent className="space-y-4">
@@ -180,6 +191,11 @@ export function PoopPrompt({ todaysEntry }: PoopPromptProps) {
         <p className="text-xl text-muted-foreground">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
+        {user && (
+          <Badge variant="secondary" className="mt-2">
+            Cloud Sync Active ☁️
+          </Badge>
+        )}
       </CardHeader>
       
       <CardContent className="space-y-6">
@@ -205,7 +221,10 @@ export function PoopPrompt({ todaysEntry }: PoopPromptProps) {
         </div>
         
         <div className="text-center text-sm text-muted-foreground">
-          <p>Track your daily movements and build healthy habits!</p>
+          <p>
+            Track your daily movements and build healthy habits!
+            {user && ' Your data syncs automatically across all devices.'}
+          </p>
         </div>
       </CardContent>
     </Card>

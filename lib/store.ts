@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { cloudSync } from './cloud-sync';
 
 export interface PoopEntry {
   id: string;
@@ -23,12 +24,17 @@ interface PoopStore {
   entries: PoopEntry[];
   achievements: Achievement[];
   streak: number;
-  addEntry: (entry: PoopEntry) => void;
-  updateEntry: (id: string, entry: Partial<PoopEntry>) => void;
-  deleteEntry: (id: string) => void;
-  addAchievement: (achievement: Achievement) => void;
+  isLoading: boolean;
+  lastSyncTime: string | null;
+  addEntry: (entry: PoopEntry, userId?: string) => Promise<void>;
+  updateEntry: (id: string, entry: Partial<PoopEntry>, userId?: string) => Promise<void>;
+  deleteEntry: (id: string, userId?: string) => Promise<void>;
+  addAchievement: (achievement: Achievement, userId?: string) => Promise<void>;
   updateStreak: () => void;
   clearAllData: () => void;
+  syncWithCloud: (userId: string) => Promise<void>;
+  loadFromCloud: (userId: string) => Promise<void>;
+  setLoading: (loading: boolean) => void;
 }
 
 export const usePoopStore = create<PoopStore>()(
@@ -37,8 +43,12 @@ export const usePoopStore = create<PoopStore>()(
       entries: [],
       achievements: [],
       streak: 0,
+      isLoading: false,
+      lastSyncTime: null,
 
-      addEntry: (entry) => {
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      addEntry: async (entry, userId) => {
         set((state) => {
           const newEntries = [...state.entries.filter(e => e.date !== entry.date), entry];
           const updatedState = { ...state, entries: newEntries };
@@ -48,23 +58,61 @@ export const usePoopStore = create<PoopStore>()(
           
           return { ...updatedState, streak };
         });
+
+        // Sync to cloud if user is authenticated
+        if (userId) {
+          try {
+            await cloudSync.saveEntryToCloud(userId, entry);
+            set({ lastSyncTime: new Date().toISOString() });
+          } catch (error) {
+            console.error('Failed to sync entry to cloud:', error);
+            // Continue with local storage even if cloud sync fails
+          }
+        }
       },
 
-      updateEntry: (id, updates) => {
-        set((state) => ({
-          entries: state.entries.map(entry =>
-            entry.id === id ? { ...entry, ...updates } : entry
-          ),
-        }));
+      updateEntry: async (id, updates, userId) => {
+        let updatedEntry: PoopEntry | null = null;
+        
+        set((state) => {
+          const newEntries = state.entries.map(entry => {
+            if (entry.id === id) {
+              updatedEntry = { ...entry, ...updates };
+              return updatedEntry;
+            }
+            return entry;
+          });
+          return { entries: newEntries };
+        });
+
+        // Sync to cloud if user is authenticated and entry was found
+        if (userId && updatedEntry) {
+          try {
+            await cloudSync.saveEntryToCloud(userId, updatedEntry);
+            set({ lastSyncTime: new Date().toISOString() });
+          } catch (error) {
+            console.error('Failed to sync updated entry to cloud:', error);
+          }
+        }
       },
 
-      deleteEntry: (id) => {
+      deleteEntry: async (id, userId) => {
         set((state) => ({
           entries: state.entries.filter(entry => entry.id !== id),
         }));
+
+        // Delete from cloud if user is authenticated
+        if (userId) {
+          try {
+            await cloudSync.deleteEntryFromCloud(userId, id);
+            set({ lastSyncTime: new Date().toISOString() });
+          } catch (error) {
+            console.error('Failed to delete entry from cloud:', error);
+          }
+        }
       },
 
-      addAchievement: (achievement) => {
+      addAchievement: async (achievement, userId) => {
         set((state) => {
           if (state.achievements.some(a => a.id === achievement.id)) {
             return state; // Achievement already exists
@@ -73,6 +121,16 @@ export const usePoopStore = create<PoopStore>()(
             achievements: [...state.achievements, achievement],
           };
         });
+
+        // Sync to cloud if user is authenticated
+        if (userId) {
+          try {
+            await cloudSync.saveAchievementToCloud(userId, achievement);
+            set({ lastSyncTime: new Date().toISOString() });
+          } catch (error) {
+            console.error('Failed to sync achievement to cloud:', error);
+          }
+        }
       },
 
       updateStreak: () => {
@@ -86,12 +144,78 @@ export const usePoopStore = create<PoopStore>()(
           entries: [],
           achievements: [],
           streak: 0,
+          lastSyncTime: null,
         });
+      },
+
+      // Sync local data to cloud
+      syncWithCloud: async (userId: string) => {
+        const state = get();
+        set({ isLoading: true });
+
+        try {
+          // Sync entries and achievements to cloud
+          await Promise.all([
+            cloudSync.syncEntriesToCloud(userId, state.entries),
+            cloudSync.syncAchievementsToCloud(userId, state.achievements),
+          ]);
+
+          set({ 
+            lastSyncTime: new Date().toISOString(),
+            isLoading: false 
+          });
+          
+          console.log('Successfully synced local data to cloud');
+        } catch (error) {
+          console.error('Failed to sync with cloud:', error);
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Load data from cloud and merge with local
+      loadFromCloud: async (userId: string) => {
+        set({ isLoading: true });
+
+        try {
+          // Load data from cloud
+          const [cloudEntries, cloudAchievements] = await Promise.all([
+            cloudSync.loadEntriesFromCloud(userId),
+            cloudSync.loadAchievementsFromCloud(userId),
+          ]);
+
+          const state = get();
+
+          // Merge cloud and local data
+          const mergedEntries = cloudSync.mergeEntries(state.entries, cloudEntries);
+          const mergedAchievements = cloudSync.mergeAchievements(state.achievements, cloudAchievements);
+
+          // Update state with merged data
+          set({
+            entries: mergedEntries,
+            achievements: mergedAchievements,
+            streak: calculateStreak(mergedEntries),
+            lastSyncTime: new Date().toISOString(),
+            isLoading: false,
+          });
+
+          console.log('Successfully loaded and merged data from cloud');
+        } catch (error) {
+          console.error('Failed to load from cloud:', error);
+          set({ isLoading: false });
+          throw error;
+        }
       },
     }),
     {
       name: 'poop-tracker-storage',
       version: 1,
+      partialize: (state) => ({
+        entries: state.entries,
+        achievements: state.achievements,
+        streak: state.streak,
+        lastSyncTime: state.lastSyncTime,
+      }),
     }
   )
 );

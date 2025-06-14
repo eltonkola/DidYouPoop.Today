@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Clock, Wheat, Smile, Meh, Frown } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import { calculatePoopScore } from '@/lib/utils';
 import { ConfettiCelebration } from '@/components/confetti-celebration';
 import { SoundPlayer } from '@/components/sound-player';
@@ -29,6 +30,7 @@ type MoodType = 'happy' | 'neutral' | 'sad';
 export default function LogPage() {
   const router = useRouter();
   const { addEntry } = usePoopStore();
+  const { user } = useAuthStore();
   const [didPoop, setDidPoop] = useState<boolean | null>(null);
   const [duration, setDuration] = useState([5]);
   const [fiber, setFiber] = useState([15]);
@@ -62,18 +64,25 @@ export default function LogPage() {
       createdAt: new Date().toISOString(),
     };
 
-    addEntry(entry);
+    try {
+      // Add entry with cloud sync if user is authenticated
+      await addEntry(entry, user?.id);
 
-    if (didPoop) {
-      setShowCelebration(true);
-      toast.success(`Congrats! You scored ${entry.score} points! 🎉`);
-    } else {
-      toast.info('No worries! Tomorrow is a new day for better gut health 💪');
+      if (didPoop) {
+        setShowCelebration(true);
+        toast.success(`Congrats! You scored ${entry.score} points! 🎉`);
+      } else {
+        toast.info('No worries! Tomorrow is a new day for better gut health 💪');
+      }
+
+      setTimeout(() => {
+        router.push('/score');
+      }, didPoop ? 3000 : 1000);
+    } catch (error) {
+      console.error('Error saving entry:', error);
+      toast.error('Failed to save entry. Please try again.');
+      setIsSubmitting(false);
     }
-
-    setTimeout(() => {
-      router.push('/score');
-    }, didPoop ? 3000 : 1000);
   };
 
   return (
@@ -104,6 +113,11 @@ export default function LogPage() {
             Back
           </Button>
           <h1 className="text-3xl font-bold">Log Your Poop 💩</h1>
+          {user && (
+            <Badge variant="secondary" className="ml-auto">
+              Cloud Sync Enabled
+            </Badge>
+          )}
         </div>
 
         <Card className="bg-white/80 backdrop-blur-sm">
@@ -248,6 +262,12 @@ export default function LogPage() {
                     '📝 Log My Day'
                   )}
                 </Button>
+
+                {user && (
+                  <div className="text-center text-sm text-muted-foreground">
+                    Your data will be automatically synced to the cloud ☁️
+                  </div>
+                )}
               </motion.div>
             )}
           </CardContent>

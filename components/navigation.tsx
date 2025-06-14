@@ -15,7 +15,9 @@ import {
   Plus,
   BarChart3,
   LogIn,
-  Crown
+  Crown,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
@@ -33,7 +35,7 @@ const navigation = [
 
 export function Navigation() {
   const pathname = usePathname();
-  const { streak, achievements } = usePoopStore();
+  const { streak, achievements, isLoading, lastSyncTime } = usePoopStore();
   const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -85,6 +87,28 @@ export function Navigation() {
 
           {/* Right side */}
           <div className="flex items-center gap-4">
+            {/* Sync Status */}
+            {user && (
+              <div className="hidden sm:flex items-center gap-2">
+                {isLoading ? (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Cloud className="w-3 h-3 animate-pulse" />
+                    Syncing...
+                  </Badge>
+                ) : lastSyncTime ? (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Cloud className="w-3 h-3 text-green-600" />
+                    Synced
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <CloudOff className="w-3 h-3 text-gray-500" />
+                    Local Only
+                  </Badge>
+                )}
+              </div>
+            )}
+
             {/* Streak Badge */}
             {streak > 0 && (
               <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
@@ -132,6 +156,28 @@ export function Navigation() {
                       <span className="text-2xl">💩</span>
                       <span className="font-bold text-lg">DidYouPoop.Today</span>
                     </div>
+                    
+                    {/* Sync Status for mobile */}
+                    {user && (
+                      <div className="flex items-center gap-2 mb-2">
+                        {isLoading ? (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Cloud className="w-3 h-3 animate-pulse" />
+                            Syncing...
+                          </Badge>
+                        ) : lastSyncTime ? (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Cloud className="w-3 h-3 text-green-600" />
+                            Cloud Synced
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <CloudOff className="w-3 h-3 text-gray-500" />
+                            Local Only
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Always show navigation */}
                     {streak > 0 && (

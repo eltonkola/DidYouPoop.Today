@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { authService, AuthUser } from './auth';
+import { usePoopStore } from './store';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -28,6 +29,15 @@ export const useAuthStore = create<AuthStore>()(
           await authService.signIn(email, password);
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
+
+          // Load user data from cloud after successful sign in
+          if (user) {
+            try {
+              await usePoopStore.getState().loadFromCloud(user.id);
+            } catch (error) {
+              console.error('Failed to load data from cloud after sign in:', error);
+            }
+          }
         } catch (error) {
           set({ loading: false });
           throw error;
@@ -40,6 +50,19 @@ export const useAuthStore = create<AuthStore>()(
           await authService.signUp(email, password, fullName);
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
+
+          // Sync local data to cloud after successful sign up
+          if (user) {
+            try {
+              const poopStore = usePoopStore.getState();
+              // If user has local data, sync it to cloud
+              if (poopStore.entries.length > 0 || poopStore.achievements.length > 0) {
+                await poopStore.syncWithCloud(user.id);
+              }
+            } catch (error) {
+              console.error('Failed to sync local data to cloud after sign up:', error);
+            }
+          }
         } catch (error) {
           set({ loading: false });
           throw error;
@@ -51,6 +74,10 @@ export const useAuthStore = create<AuthStore>()(
         try {
           await authService.signOut();
           set({ user: null, loading: false });
+          
+          // Note: We don't clear local data on sign out
+          // This allows users to continue using the app offline
+          // and sync when they sign back in
         } catch (error) {
           set({ loading: false });
           throw error;
@@ -74,6 +101,15 @@ export const useAuthStore = create<AuthStore>()(
             const user = await authService.getCurrentUser();
             clearTimeout(timeoutId);
             set({ user, loading: false, initialized: true });
+
+            // Load user data from cloud if authenticated
+            if (user) {
+              try {
+                await usePoopStore.getState().loadFromCloud(user.id);
+              } catch (error) {
+                console.error('Failed to load data from cloud during initialization:', error);
+              }
+            }
           } else {
             // No Supabase config - run in free mode
             clearTimeout(timeoutId);
@@ -88,7 +124,15 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       updateUser: (user: AuthUser | null) => {
+        const currentUser = get().user;
         set({ user });
+
+        // If user just signed in, load their cloud data
+        if (user && !currentUser) {
+          usePoopStore.getState().loadFromCloud(user.id).catch(error => {
+            console.error('Failed to load data from cloud after user update:', error);
+          });
+        }
       },
     }),
     {
