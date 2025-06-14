@@ -73,9 +73,9 @@ export const authService = {
     if (!isSupabaseConfigured() || !supabase) return null;
     
     try {
-      // Shorter timeout for auth check
+      // Increased timeout and better error handling
       const authTimeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Auth timeout')), 2000); // Reduced to 2 seconds
+        setTimeout(() => reject(new Error('Auth timeout')), 5000); // Increased to 5 seconds
       });
       
       const { data: { user }, error: authError } = await Promise.race([
@@ -94,9 +94,9 @@ export const authService = {
       let subscriptionTier = 'premium';
       
       try {
-        // Very short timeout for profile fetch
+        // Longer timeout for profile fetch
         const profileTimeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 1000);
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 3000); // Increased to 3 seconds
         });
         
         const { data: profile, error: profileError } = await Promise.race([
@@ -113,13 +113,18 @@ export const authService = {
           // Try to create profile if it doesn't exist
           if (profileError.code === 'PGRST116' || profileError.message?.includes('No rows found')) {
             // Don't wait for profile creation, just continue
-            this.createUserProfile(user).catch(console.error);
+            this.createUserProfile(user).catch(() => {
+              // Silently handle profile creation errors
+            });
           }
         } else if (profile) {
           subscriptionTier = profile.subscription_tier;
         }
       } catch (error) {
-        console.log('Profile fetch failed, using default subscription tier:', error);
+        // Only log profile fetch errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Profile fetch failed, using default subscription tier:', error);
+        }
       }
 
       return {
@@ -127,7 +132,10 @@ export const authService = {
         subscription_tier: subscriptionTier,
       };
     } catch (error) {
-      console.log('getCurrentUser failed:', error);
+      // Only log auth errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('getCurrentUser failed:', error);
+      }
       return null;
     }
   },
