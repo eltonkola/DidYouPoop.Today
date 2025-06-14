@@ -15,36 +15,44 @@ const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPAB
 
 Deno.serve(async (req) => {
   try {
-    // Handle CORS preflight requests
+    // Handle CORS preflight requests with comprehensive headers
     if (req.method === 'OPTIONS') {
+      console.log('Handling CORS preflight for webhook');
       return new Response(null, {
         status: 204,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature, x-requested-with, accept, origin, referer, user-agent',
           'Access-Control-Max-Age': '86400',
+          'Access-Control-Allow-Credentials': 'false',
         },
       });
     }
 
     if (req.method !== 'POST') {
+      console.log(`Webhook method ${req.method} not allowed`);
       return new Response('Method not allowed', { 
         status: 405,
         headers: {
           'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
         },
       });
     }
+
+    console.log('Processing webhook request');
 
     // get the signature from the header
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
+      console.log('No Stripe signature found');
       return new Response('No signature found', { 
         status: 400,
         headers: {
           'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
         },
       });
     }
@@ -57,21 +65,25 @@ Deno.serve(async (req) => {
 
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+      console.log(`Webhook event verified: ${event.type}`);
     } catch (error: any) {
       console.error(`Webhook signature verification failed: ${error.message}`);
       return new Response(`Webhook signature verification failed: ${error.message}`, { 
         status: 400,
         headers: {
           'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
         },
       });
     }
 
+    // Process the event asynchronously
     EdgeRuntime.waitUntil(handleEvent(event));
 
     return Response.json({ received: true }, {
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
       },
     });
   } catch (error: any) {
@@ -80,24 +92,30 @@ Deno.serve(async (req) => {
       status: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
       },
     });
   }
 });
 
 async function handleEvent(event: Stripe.Event) {
+  console.log(`Handling event: ${event.type}`);
+  
   const stripeData = event?.data?.object ?? {};
 
   if (!stripeData) {
+    console.log('No data in event');
     return;
   }
 
   if (!('customer' in stripeData)) {
+    console.log('No customer in event data');
     return;
   }
 
   // for one time payments, we only listen for the checkout.session.completed event
   if (event.type === 'payment_intent.succeeded' && event.data.object.invoice === null) {
+    console.log('Skipping payment_intent.succeeded for one-time payment');
     return;
   }
 
@@ -110,9 +128,7 @@ async function handleEvent(event: Stripe.Event) {
 
     if (event.type === 'checkout.session.completed') {
       const { mode } = stripeData as Stripe.Checkout.Session;
-
       isSubscription = mode === 'subscription';
-
       console.info(`Processing ${isSubscription ? 'subscription' : 'one-time payment'} checkout session`);
     }
 
@@ -159,6 +175,8 @@ async function handleEvent(event: Stripe.Event) {
 // based on the excellent https://github.com/t3dotgg/stripe-recommendations
 async function syncCustomerFromStripe(customerId: string) {
   try {
+    console.log(`Syncing customer ${customerId} from Stripe`);
+    
     // fetch latest subscription data from Stripe
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
@@ -184,6 +202,7 @@ async function syncCustomerFromStripe(customerId: string) {
         console.error('Error updating subscription status:', noSubError);
         throw new Error('Failed to update subscription status in database');
       }
+      return;
     }
 
     // assumes that a customer can only have a single subscription
