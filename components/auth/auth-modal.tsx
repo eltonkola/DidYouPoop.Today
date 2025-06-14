@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,17 +77,17 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
           <DialogTitle className="text-center text-2xl font-bold">
             {mode === 'signin' ? 'Welcome Back!' : 'Join DidYouPoop.Today'}
           </DialogTitle>
+          <DialogDescription className="text-center">
+            {mode === 'signin' 
+              ? 'Sign in to continue tracking your gut health and sync your data across devices'
+              : 'Create an account to start your gut health journey with cloud sync and premium features'
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           <div className="text-center">
             <div className="text-4xl mb-2">💩</div>
-            <p className="text-muted-foreground">
-              {mode === 'signin' 
-                ? 'Sign in to continue tracking your gut health'
-                : 'Start your gut health journey today'
-              }
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,8 +111,12 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                         onChange={(e) => setFullName(e.target.value)}
                         className="pl-10"
                         disabled={loading}
+                        aria-describedby="fullName-description"
                       />
                     </div>
+                    <p id="fullName-description" className="text-xs text-muted-foreground">
+                      This will be displayed in your profile
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -130,8 +134,12 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   disabled={loading}
+                  aria-describedby="email-description"
                 />
               </div>
+              <p id="email-description" className="text-xs text-muted-foreground">
+                We'll use this to send you important updates about your account
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -146,6 +154,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
                   disabled={loading}
+                  aria-describedby="password-description"
                 />
                 <Button
                   type="button"
@@ -154,6 +163,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -162,6 +172,12 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
                   )}
                 </Button>
               </div>
+              <p id="password-description" className="text-xs text-muted-foreground">
+                {mode === 'signup' 
+                  ? 'Choose a strong password with at least 6 characters'
+                  : 'Enter the password for your account'
+                }
+              </p>
             </div>
 
             {error && (
