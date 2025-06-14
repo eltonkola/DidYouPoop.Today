@@ -2,26 +2,71 @@ let isConfigured = false;
 let isInitializing = false;
 let initializationAttempted = false;
 let purchasesInstance: any = null;
+let initializationError: Error | null = null;
 
-const isBrowser = () => typeof window !== 'undefined';
+const isBrowser = () => {
+  try {
+    return typeof window !== 'undefined';
+  } catch (err) {
+    console.error('Error checking browser environment:', err);
+    return false;
+  }
+};
+
+// Define types for RevenueCat objects
+interface RevenueCatEntitlementInfo {
+  isActive: boolean;
+  willRenew: boolean;
+  periodEnd: number;
+}
+
+interface RevenueCatCustomerInfo {
+  entitlements: {
+    [key: string]: RevenueCatEntitlementInfo;
+  };
+  activeSubscriptions: string[];
+  allPurchasedProducts: string[];
+}
+
+interface RevenueCatPackage {
+  identifier: string;
+  offeringIdentifier: string;
+  platformProductIdentifier: string;
+  storeProduct: any;
+}
+
+interface RevenueCatOffering {
+  identifier: string;
+  availablePackages: RevenueCatPackage[];
+  lifetime: RevenueCatPackage | null;
+  monthly: RevenueCatPackage | null;
+  yearly: RevenueCatPackage | null;
+}
+
+interface RevenueCatCustomerInfoResponse {
+  customerInfo: RevenueCatCustomerInfo;
+}
 
 export const initializeRevenueCat = async (userId?: string) => {
+  console.log('[RevenueCat] Starting initialization with userId:', userId);
+  
   if (!isBrowser()) {
-    console.log('RevenueCat initialization skipped - not in browser');
+    console.log('[RevenueCat] Initialization skipped - not in browser');
     return;
   }
 
   if (isConfigured || isInitializing || initializationAttempted) {
-    console.log('RevenueCat initialization already attempted or in progress');
+    console.log('[RevenueCat] Initialization already attempted or in progress');
     return;
   }
 
   const apiKey = 'rcb_BanyGJtoufgcVNwnMdMWcWdfRfme';
   isInitializing = true;
   initializationAttempted = true;
+  initializationError = null;
 
   try {
-    console.log('Attempting to initialize RevenueCat...');
+    console.log('[RevenueCat] Attempting to import and configure...');
     const { default: Purchases } = await import('@revenuecat/purchases-js');
 
     if (!Purchases || typeof Purchases.configure !== 'function') {
@@ -32,54 +77,96 @@ export const initializeRevenueCat = async (userId?: string) => {
     purchasesInstance = Purchases;
     isConfigured = true;
 
-    console.log('RevenueCat initialized successfully');
+    console.log('[RevenueCat] Successfully configured');
 
     // Optional test
     try {
-      await Purchases.getCustomerInfo();
-      console.log('RevenueCat connection test successful');
+      const customerInfo = await Purchases.getCustomerInfo();
+      console.log('[RevenueCat] Connection test successful', {
+        hasEntitlements: Object.keys(customerInfo.entitlements || {}).length > 0,
+        activeSubscriptions: customerInfo.activeSubscriptions || []
+      });
     } catch (testError) {
-      console.warn('RevenueCat connection test failed:', testError);
+      console.warn('[RevenueCat] Connection test failed:', testError);
     }
   } catch (error) {
-    console.error('Failed to initialize RevenueCat:', error);
+    console.error('[RevenueCat] Initialization failed:', error);
+    initializationError = error as Error;
     isConfigured = false;
     purchasesInstance = null;
   } finally {
     isInitializing = false;
+    console.log('[RevenueCat] Initialization complete', {
+      configured: isConfigured,
+      error: initializationError?.message
+    });
   }
 };
 
+export const getInitializationError = (): Error | null => {
+  return initializationError;
+};
+
 export const isRevenueCatConfigured = (): boolean => {
+  console.log('[RevenueCat] Checking configuration status:', {
+    configured: isConfigured,
+    initializing: isInitializing,
+    attempted: initializationAttempted
+  });
   return isConfigured;
 };
 
 export const isRevenueCatReady = (): boolean => {
-  return isConfigured && !!purchasesInstance && initializationAttempted;
+  const ready = isConfigured && !!purchasesInstance && initializationAttempted;
+  console.log('[RevenueCat] Checking readiness:', {
+    configured: isConfigured,
+    hasInstance: !!purchasesInstance,
+    attempted: initializationAttempted,
+    ready
+  });
+  return ready;
 };
 
-export const getOfferings = async () => {
+export const getOfferings = async (): Promise<RevenueCatOffering[]> => {
   if (!isRevenueCatReady()) {
-    console.warn('RevenueCat not ready');
+    console.warn('[RevenueCat] Not ready to get offerings');
     return [];
   }
 
   try {
+    console.log('[RevenueCat] Fetching offerings...');
     const offerings = await purchasesInstance.getOfferings();
-    return Object.values(offerings.all || {});
+    const offeringValues = Object.values(offerings.all || {}) as RevenueCatOffering[];
+    console.log('[RevenueCat] Retrieved offerings:', {
+      count: offeringValues.length,
+      identifiers: offeringValues.map(o => o.identifier)
+    });
+    return offeringValues;
   } catch (error) {
-    console.error('Failed to get offerings:', error);
+    console.error('[RevenueCat] Failed to get offerings:', error);
     return [];
   }
 };
 
-export const purchasePackage = async (packageToPurchase: any) => {
-  if (!isRevenueCatReady()) throw new Error('RevenueCat not ready');
+export const purchasePackage = async (packageToPurchase: RevenueCatPackage): Promise<RevenueCatCustomerInfo> => {
+  if (!isRevenueCatReady()) {
+    throw new Error('[RevenueCat] Not ready to process purchase');
+  }
 
   try {
+    console.log('[RevenueCat] Initiating purchase...', {
+      packageId: packageToPurchase?.identifier,
+      offeringId: packageToPurchase?.offeringIdentifier
+    });
+    
     const { customerInfo } = await purchasesInstance.purchasePackage(packageToPurchase);
+    console.log('[RevenueCat] Purchase completed successfully', {
+      hasEntitlements: Object.keys(customerInfo?.entitlements || {}).length > 0,
+      activeSubscriptions: customerInfo?.activeSubscriptions || []
+    });
     return customerInfo;
   } catch (error: any) {
+    console.error('[RevenueCat] Purchase failed:', error);
     if (error?.userCancelled) {
       throw { userCancelled: true, message: 'Purchase was cancelled' };
     }
@@ -87,52 +174,92 @@ export const purchasePackage = async (packageToPurchase: any) => {
   }
 };
 
-export const getCustomerInfo = async () => {
-  if (!isRevenueCatReady()) return null;
+export const getCustomerInfo = async (): Promise<RevenueCatCustomerInfo | null> => {
+  if (!isRevenueCatReady()) {
+    console.log('[RevenueCat] Not ready to get customer info');
+    return null;
+  }
 
   try {
-    return await purchasesInstance.getCustomerInfo();
+    console.log('[RevenueCat] Fetching customer info...');
+    const customerInfo = await purchasesInstance.getCustomerInfo();
+    console.log('[RevenueCat] Retrieved customer info', {
+      hasEntitlements: Object.keys(customerInfo?.entitlements || {}).length > 0,
+      activeSubscriptions: customerInfo?.activeSubscriptions || []
+    });
+    return customerInfo;
   } catch (error) {
-    console.error('Failed to get customer info:', error);
+    console.error('[RevenueCat] Failed to get customer info:', error);
     return null;
   }
 };
 
-export const restorePurchases = async () => {
-  if (!isRevenueCatReady()) throw new Error('RevenueCat not ready');
+export const restorePurchases = async (): Promise<RevenueCatCustomerInfo | null> => {
+  if (!isRevenueCatReady()) {
+    throw new Error('[RevenueCat] Not ready to restore purchases');
+  }
 
   try {
+    console.log('[RevenueCat] Initiating purchase restoration...');
     const { customerInfo } = await purchasesInstance.restorePurchases();
+    console.log('[RevenueCat] Purchase restoration completed', {
+      hasEntitlements: Object.keys(customerInfo?.entitlements || {}).length > 0,
+      activeSubscriptions: customerInfo?.activeSubscriptions || []
+    });
     return customerInfo;
   } catch (error) {
-    console.error('Failed to restore purchases:', error);
+    console.error('[RevenueCat] Failed to restore purchases:', error);
     throw error;
   }
 };
 
-export const isPremiumUser = (customerInfo: any): boolean => {
-  if (!customerInfo) return false;
-  try {
-    return Object.keys(customerInfo.entitlements?.active || {}).length > 0;
-  } catch {
+export const isPremiumUser = (customerInfo: RevenueCatCustomerInfo): boolean => {
+  if (!customerInfo) {
+    console.warn('[RevenueCat] No customer info provided for premium check');
     return false;
   }
+
+  const premiumEntitlement = getPremiumEntitlement(customerInfo);
+  const hasActiveSubscription = customerInfo.activeSubscriptions?.length > 0;
+
+  console.log('[RevenueCat] Premium status check', {
+    hasPremiumEntitlement: !!premiumEntitlement,
+    hasActiveSubscription,
+    activeSubscriptions: customerInfo.activeSubscriptions || []
+  });
+
+  return !!premiumEntitlement || hasActiveSubscription;
 };
 
-export const getPremiumEntitlement = (customerInfo: any): string | null => {
-  if (!customerInfo) return null;
-  try {
-    const keys = Object.keys(customerInfo.entitlements?.active || {});
-    return keys[0] ?? null;
-  } catch {
+export const getPremiumEntitlement = (customerInfo: RevenueCatCustomerInfo): string | null => {
+  if (!customerInfo) {
+    console.warn('[RevenueCat] No customer info provided for entitlement check');
     return null;
   }
+
+  const entitlements = customerInfo.entitlements || {};
+  const activeEntitlements = Object.entries(entitlements)
+    .filter(([_, info]) => info?.isActive)
+    .map(([id]) => id);
+
+  console.log('[RevenueCat] Checking entitlements', {
+    activeEntitlements,
+    allEntitlements: Object.keys(entitlements)
+  });
+
+  return activeEntitlements[0] || null;
 };
 
 export const reinitializeRevenueCat = async (userId?: string) => {
+  console.log('[RevenueCat] Starting reinitialization');
+  
+  // Reset state
   isConfigured = false;
   isInitializing = false;
   initializationAttempted = false;
   purchasesInstance = null;
+  initializationError = null;
+
+  // Reinitialize
   await initializeRevenueCat(userId);
 };
