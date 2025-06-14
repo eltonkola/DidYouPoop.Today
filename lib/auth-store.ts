@@ -4,7 +4,6 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { authService, AuthUser } from './auth';
 import { usePoopStore } from './store';
-import { initializeRevenueCat, isRevenueCatConfigured } from './revenuecat';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -16,6 +15,18 @@ interface AuthStore {
   initialize: () => Promise<void>;
   updateUser: (user: AuthUser | null) => void;
 }
+
+// Safe RevenueCat initialization
+const safeInitializeRevenueCat = async (userId?: string) => {
+  try {
+    const { initializeRevenueCat, isRevenueCatConfigured } = await import('./revenuecat');
+    if (isRevenueCatConfigured()) {
+      await initializeRevenueCat(userId);
+    }
+  } catch (error) {
+    console.log('RevenueCat initialization skipped:', error);
+  }
+};
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -32,12 +43,8 @@ export const useAuthStore = create<AuthStore>()(
           set({ user, loading: false });
 
           // Initialize RevenueCat with user ID (with error handling)
-          if (user && isRevenueCatConfigured()) {
-            try {
-              await initializeRevenueCat(user.id);
-            } catch (error) {
-              console.error('Failed to initialize RevenueCat after sign in:', error);
-            }
+          if (user) {
+            safeInitializeRevenueCat(user.id);
           }
 
           // Load user data from cloud after successful sign in
@@ -62,12 +69,8 @@ export const useAuthStore = create<AuthStore>()(
           set({ user, loading: false });
 
           // Initialize RevenueCat with user ID (with error handling)
-          if (user && isRevenueCatConfigured()) {
-            try {
-              await initializeRevenueCat(user.id);
-            } catch (error) {
-              console.error('Failed to initialize RevenueCat after sign up:', error);
-            }
+          if (user) {
+            safeInitializeRevenueCat(user.id);
           }
 
           // Sync local data to cloud after successful sign up
@@ -122,13 +125,7 @@ export const useAuthStore = create<AuthStore>()(
             set({ user, loading: false, initialized: true });
 
             // Initialize RevenueCat if configured (with error handling)
-            if (isRevenueCatConfigured()) {
-              try {
-                await initializeRevenueCat(user?.id);
-              } catch (error) {
-                console.error('Failed to initialize RevenueCat during auth init:', error);
-              }
-            }
+            safeInitializeRevenueCat(user?.id);
 
             // Load user data from cloud if authenticated
             if (user) {
@@ -144,13 +141,7 @@ export const useAuthStore = create<AuthStore>()(
             set({ user: null, loading: false, initialized: true });
             
             // Still initialize RevenueCat for anonymous users if configured
-            if (isRevenueCatConfigured()) {
-              try {
-                await initializeRevenueCat();
-              } catch (error) {
-                console.error('Failed to initialize RevenueCat in free mode:', error);
-              }
-            }
+            safeInitializeRevenueCat();
           }
         } catch (error) {
           // Fail gracefully - app works without auth
@@ -159,13 +150,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ user: null, loading: false, initialized: true });
           
           // Still try to initialize RevenueCat
-          if (isRevenueCatConfigured()) {
-            try {
-              await initializeRevenueCat();
-            } catch (revenueCatError) {
-              console.error('Failed to initialize RevenueCat after auth failure:', revenueCatError);
-            }
-          }
+          safeInitializeRevenueCat();
         }
       },
 
@@ -174,10 +159,8 @@ export const useAuthStore = create<AuthStore>()(
         set({ user });
 
         // Initialize RevenueCat when user signs in (with error handling)
-        if (user && !currentUser && isRevenueCatConfigured()) {
-          initializeRevenueCat(user.id).catch(error => {
-            console.error('Failed to initialize RevenueCat on user update:', error);
-          });
+        if (user && !currentUser) {
+          safeInitializeRevenueCat(user.id);
         }
 
         // If user just signed in, load their cloud data

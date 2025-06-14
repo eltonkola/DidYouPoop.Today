@@ -29,12 +29,6 @@ const nextConfig = {
     // Disable webpack caching to prevent EIO errors
     config.cache = false;
     
-    // Ensure RevenueCat is treated as external for SSR
-    if (isServer) {
-      config.externals = config.externals || [];
-      config.externals.push('@revenuecat/purchases-js');
-    }
-    
     return config;
   },
   // Add output configuration for static export compatibility

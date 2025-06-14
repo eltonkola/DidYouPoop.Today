@@ -7,50 +7,51 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { getOfferings, purchasePackage, isRevenueCatConfigured, isRevenueCatReady } from '@/lib/revenuecat';
-import { PurchasesOffering, PurchasesPackage } from '@revenuecat/purchases-js';
 import { toast } from 'sonner';
 
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [loadingOfferings, setLoadingOfferings] = useState(true);
-  const [offerings, setOfferings] = useState<PurchasesOffering[]>([]);
-  const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
+  const [offerings, setOfferings] = useState<any[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [revenueCatAvailable, setRevenueCatAvailable] = useState(false);
 
   useEffect(() => {
-    // Wait a bit for RevenueCat to initialize, then load offerings
-    const timer = setTimeout(() => {
-      loadOfferings();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    checkRevenueCatAndLoadOfferings();
   }, []);
 
-  const loadOfferings = async () => {
-    if (!isRevenueCatConfigured()) {
-      setLoadingOfferings(false);
-      return;
-    }
-    
+  const checkRevenueCatAndLoadOfferings = async () => {
     try {
-      // Check if RevenueCat is ready
-      if (!isRevenueCatReady()) {
-        console.log('RevenueCat not ready yet, retrying...');
-        setTimeout(loadOfferings, 2000);
+      const { isRevenueCatConfigured, getOfferings } = await import('@/lib/revenuecat');
+      
+      if (!isRevenueCatConfigured()) {
+        setRevenueCatAvailable(false);
+        setLoadingOfferings(false);
         return;
       }
 
-      const availableOfferings = await getOfferings();
-      setOfferings(availableOfferings);
+      setRevenueCatAvailable(true);
       
-      // Auto-select the first package if available
-      if (availableOfferings.length > 0 && availableOfferings[0].availablePackages.length > 0) {
-        setSelectedPackage(availableOfferings[0].availablePackages[0]);
-      }
+      // Wait a bit for RevenueCat to initialize
+      setTimeout(async () => {
+        try {
+          const availableOfferings = await getOfferings();
+          setOfferings(availableOfferings);
+          
+          // Auto-select the first package if available
+          if (availableOfferings.length > 0 && availableOfferings[0].availablePackages?.length > 0) {
+            setSelectedPackage(availableOfferings[0].availablePackages[0]);
+          }
+        } catch (error) {
+          console.error('Failed to load offerings:', error);
+        } finally {
+          setLoadingOfferings(false);
+        }
+      }, 2000);
     } catch (error) {
-      console.error('Failed to load offerings:', error);
-    } finally {
+      console.error('RevenueCat not available:', error);
+      setRevenueCatAvailable(false);
       setLoadingOfferings(false);
     }
   };
@@ -61,14 +62,16 @@ export function PremiumUpgrade() {
       return;
     }
 
-    if (!isRevenueCatReady()) {
-      toast.error('Payment system not ready. Please try again in a moment.');
-      return;
-    }
-
     setLoading(true);
     
     try {
+      const { purchasePackage, isRevenueCatReady } = await import('@/lib/revenuecat');
+      
+      if (!isRevenueCatReady()) {
+        toast.error('Payment system not ready. Please try again in a moment.');
+        return;
+      }
+
       const customerInfo = await purchasePackage(selectedPackage);
       
       if (customerInfo) {
@@ -112,7 +115,7 @@ export function PremiumUpgrade() {
     },
   ];
 
-  if (!isRevenueCatConfigured()) {
+  if (!revenueCatAvailable) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-4">
@@ -123,6 +126,12 @@ export function PremiumUpgrade() {
           <p className="text-xl text-muted-foreground">
             We're working on bringing you premium features. Check back soon!
           </p>
+          <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              💡 <strong>Good news!</strong> All features are currently free while we set up premium subscriptions.
+              Enjoy unlimited access to advanced analytics, cloud sync, and all premium features!
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -149,15 +158,21 @@ export function PremiumUpgrade() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-2 text-6xl mb-4">
-            <AlertCircle className="w-16 h-16 text-yellow-600" />
+            <Crown className="w-16 h-16 text-yellow-600" />
           </div>
-          <h1 className="text-4xl font-bold">No Premium Plans Available</h1>
+          <h1 className="text-4xl font-bold">Premium Features Available</h1>
           <p className="text-xl text-muted-foreground">
-            Premium plans are not configured yet. Please check back later!
+            Premium plans are being configured. All features are currently free!
           </p>
-          <Button onClick={loadOfferings} variant="outline">
+          <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg">
+            <p className="text-sm text-green-700 dark:text-green-300">
+              🎉 <strong>Special Launch Offer!</strong> All premium features are currently free while we finalize our subscription plans.
+              Enjoy unlimited access to advanced analytics, cloud sync, and priority support!
+            </p>
+          </div>
+          <Button onClick={checkRevenueCatAndLoadOfferings} variant="outline">
             <Loader2 className="w-4 h-4 mr-2" />
-            Retry Loading
+            Check Again
           </Button>
         </div>
       </div>
@@ -181,7 +196,7 @@ export function PremiumUpgrade() {
 
       {offerings.map((offering) => (
         <div key={offering.identifier} className="space-y-4">
-          {offering.availablePackages.map((pkg) => (
+          {offering.availablePackages?.map((pkg: any) => (
             <Card 
               key={pkg.identifier}
               className={`bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 ${
@@ -194,10 +209,10 @@ export function PremiumUpgrade() {
               <CardHeader className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Crown className="w-6 h-6 text-yellow-600" />
-                  <CardTitle className="text-2xl">{pkg.product.title}</CardTitle>
+                  <CardTitle className="text-2xl">{pkg.product?.title || 'Premium Plan'}</CardTitle>
                 </div>
                 <div className="text-4xl font-bold text-yellow-700 dark:text-yellow-300">
-                  {pkg.product.priceString}
+                  {pkg.product?.priceString || '$2.99'}
                   {pkg.packageType === 'MONTHLY' && (
                     <span className="text-lg font-normal text-muted-foreground">/month</span>
                   )}
@@ -205,7 +220,7 @@ export function PremiumUpgrade() {
                     <span className="text-lg font-normal text-muted-foreground">/year</span>
                   )}
                 </div>
-                <p className="text-muted-foreground">{pkg.product.description}</p>
+                <p className="text-muted-foreground">{pkg.product?.description || 'Premium subscription with all features'}</p>
               </CardHeader>
               
               <CardContent className="space-y-6">
@@ -253,7 +268,7 @@ export function PremiumUpgrade() {
 
       <Button
         onClick={handleUpgrade}
-        disabled={loading || !selectedPackage || !isRevenueCatReady()}
+        disabled={loading || !selectedPackage}
         size="lg"
         className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
       >
@@ -261,11 +276,6 @@ export function PremiumUpgrade() {
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Processing...
-          </>
-        ) : !isRevenueCatReady() ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Loading Payment System...
           </>
         ) : (
           <>

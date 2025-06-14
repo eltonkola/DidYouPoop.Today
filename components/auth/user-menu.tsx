@@ -16,7 +16,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Settings, LogOut, Crown, CreditCard } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { getUserSubscription, getSubscriptionPlan, UserSubscription } from '@/lib/subscription';
-import { isRevenueCatConfigured } from '@/lib/revenuecat';
 import { toast } from 'sonner';
 
 export function UserMenu() {
@@ -24,12 +23,27 @@ export function UserMenu() {
   const { user, signOut } = useAuthStore();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [revenueCatAvailable, setRevenueCatAvailable] = useState(false);
 
   useEffect(() => {
-    if (user && isRevenueCatConfigured()) {
-      loadSubscription();
+    if (user) {
+      checkRevenueCatAndLoadSubscription();
     }
   }, [user]);
+
+  const checkRevenueCatAndLoadSubscription = async () => {
+    try {
+      const { isRevenueCatConfigured } = await import('@/lib/revenuecat');
+      
+      if (isRevenueCatConfigured()) {
+        setRevenueCatAvailable(true);
+        loadSubscription();
+      }
+    } catch (error) {
+      console.log('RevenueCat not available:', error);
+      setRevenueCatAvailable(false);
+    }
+  };
 
   const loadSubscription = async () => {
     try {
@@ -93,12 +107,17 @@ export function UserMenu() {
                   'Free'
                 )}
               </Badge>
+              {!revenueCatAvailable && (
+                <Badge variant="outline" className="text-xs">
+                  All Features Free
+                </Badge>
+              )}
             </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {!plan.isPremium && isRevenueCatConfigured() && (
+        {!plan.isPremium && revenueCatAvailable && (
           <>
             <DropdownMenuItem onClick={() => router.push('/premium')}>
               <CreditCard className="mr-2 h-4 w-4" />
