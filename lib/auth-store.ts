@@ -16,12 +16,16 @@ interface AuthStore {
   updateUser: (user: AuthUser | null) => void;
 }
 
-// Safe RevenueCat initialization
+// Safe RevenueCat initialization with better error handling
 const safeInitializeRevenueCat = async (userId?: string) => {
   try {
     const { initializeRevenueCat, isRevenueCatConfigured } = await import('./revenuecat');
+    
     if (isRevenueCatConfigured()) {
+      console.log('Initializing RevenueCat for user:', userId || 'anonymous');
       await initializeRevenueCat(userId);
+    } else {
+      console.log('RevenueCat not configured');
     }
   } catch (error) {
     console.log('RevenueCat initialization skipped:', error);
@@ -115,6 +119,9 @@ export const useAuthStore = create<AuthStore>()(
         const timeoutId = setTimeout(() => {
           console.log('Auth initialization timeout - proceeding in free mode');
           set({ user: null, loading: false, initialized: true });
+          
+          // Still try to initialize RevenueCat for anonymous users
+          safeInitializeRevenueCat();
         }, 3000); // Reduced to 3 seconds
         
         try {

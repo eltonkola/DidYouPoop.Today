@@ -1,32 +1,27 @@
 let isConfigured = false;
 let isInitializing = false;
 let initializationAttempted = false;
+let purchasesInstance: any = null;
 
-// Check if we're in a browser environment and RevenueCat is available
-const isRevenueCatAvailable = () => {
-  if (typeof window === 'undefined') return false;
-  
-  try {
-    // Dynamic import check
-    return typeof window !== 'undefined' && window.Purchases !== undefined;
-  } catch {
-    return false;
-  }
-};
+// Check if we're in a browser environment
+const isBrowser = () => typeof window !== 'undefined';
 
 export const initializeRevenueCat = async (userId?: string) => {
   // Prevent multiple initialization attempts
-  if (isConfigured || isInitializing || initializationAttempted) return;
+  if (isConfigured || isInitializing || initializationAttempted) {
+    console.log('RevenueCat initialization already attempted or in progress');
+    return;
+  }
   
   const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
-  if (!apiKey) {
-    console.log('RevenueCat API key not found. Premium features will be disabled.');
+  if (!apiKey || apiKey.includes('your_revenuecat') || apiKey === '') {
+    console.log('RevenueCat API key not configured. Premium features will be disabled.');
     initializationAttempted = true;
     return;
   }
 
   // Only run in browser environment
-  if (typeof window === 'undefined') {
+  if (!isBrowser()) {
     console.log('RevenueCat initialization skipped - not in browser environment');
     return;
   }
@@ -35,102 +30,117 @@ export const initializeRevenueCat = async (userId?: string) => {
   initializationAttempted = true;
 
   try {
-    // Try to dynamically import RevenueCat
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
+    console.log('Attempting to initialize RevenueCat...');
     
-    if (!Purchases || typeof Purchases.configure !== 'function') {
-      console.warn('RevenueCat Purchases object not available');
-      return;
+    // Dynamic import with better error handling
+    const RevenueCatModule = await import('@revenuecat/purchases-js');
+    const Purchases = RevenueCatModule.default || RevenueCatModule;
+    
+    if (!Purchases) {
+      throw new Error('RevenueCat module not found');
     }
 
+    if (typeof Purchases.configure !== 'function') {
+      throw new Error('RevenueCat configure method not available');
+    }
+
+    // Configure RevenueCat
     await Purchases.configure(apiKey, userId);
+    
+    // Store the instance for later use
+    purchasesInstance = Purchases;
     isConfigured = true;
+    
     console.log('RevenueCat initialized successfully');
+    
+    // Test the connection
+    try {
+      await Purchases.getCustomerInfo();
+      console.log('RevenueCat connection test successful');
+    } catch (testError) {
+      console.warn('RevenueCat connection test failed:', testError);
+    }
+    
   } catch (error) {
-    console.warn('RevenueCat not available:', error);
+    console.error('Failed to initialize RevenueCat:', error);
     isConfigured = false;
+    purchasesInstance = null;
   } finally {
     isInitializing = false;
   }
 };
 
 export const getOfferings = async () => {
-  if (!isConfigured) {
+  if (!isConfigured || !purchasesInstance) {
     console.warn('RevenueCat not configured');
     return [];
   }
 
   try {
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
+    console.log('Fetching RevenueCat offerings...');
+    const offerings = await purchasesInstance.getOfferings();
     
-    if (!Purchases || typeof Purchases.getOfferings !== 'function') {
-      console.warn('RevenueCat getOfferings not available');
+    if (!offerings || !offerings.all) {
+      console.warn('No offerings found');
       return [];
     }
-
-    const offerings = await Purchases.getOfferings();
-    return offerings.all;
+    
+    const offeringsArray = Object.values(offerings.all);
+    console.log(`Found ${offeringsArray.length} offerings`);
+    
+    return offeringsArray;
   } catch (error) {
-    console.warn('Failed to get offerings:', error);
+    console.error('Failed to get offerings:', error);
     return [];
   }
 };
 
 export const purchasePackage = async (packageToPurchase: any) => {
-  if (!isConfigured) {
+  if (!isConfigured || !purchasesInstance) {
     throw new Error('RevenueCat not configured');
   }
 
   try {
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
-    
-    if (!Purchases || typeof Purchases.purchasePackage !== 'function') {
-      throw new Error('RevenueCat purchasePackage not available');
-    }
-
-    const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
+    console.log('Attempting to purchase package:', packageToPurchase.identifier);
+    const { customerInfo } = await purchasesInstance.purchasePackage(packageToPurchase);
+    console.log('Purchase successful');
     return customerInfo;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Purchase failed:', error);
+    
+    // Handle specific error types
+    if (error.userCancelled) {
+      throw { userCancelled: true, message: 'Purchase was cancelled' };
+    }
+    
     throw error;
   }
 };
 
 export const getCustomerInfo = async () => {
-  if (!isConfigured) {
+  if (!isConfigured || !purchasesInstance) {
     console.warn('RevenueCat not configured');
     return null;
   }
 
   try {
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
-    
-    if (!Purchases || typeof Purchases.getCustomerInfo !== 'function') {
-      console.warn('RevenueCat getCustomerInfo not available');
-      return null;
-    }
-
-    const customerInfo = await Purchases.getCustomerInfo();
+    const customerInfo = await purchasesInstance.getCustomerInfo();
     return customerInfo;
   } catch (error) {
-    console.warn('Failed to get customer info:', error);
+    console.error('Failed to get customer info:', error);
     return null;
   }
 };
 
 export const restorePurchases = async () => {
-  if (!isConfigured) {
+  if (!isConfigured || !purchasesInstance) {
     throw new Error('RevenueCat not configured');
   }
 
   try {
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
-    
-    if (!Purchases || typeof Purchases.restorePurchases !== 'function') {
-      throw new Error('RevenueCat restorePurchases not available');
-    }
-
-    const { customerInfo } = await Purchases.restorePurchases();
+    console.log('Restoring purchases...');
+    const { customerInfo } = await purchasesInstance.restorePurchases();
+    console.log('Purchases restored successfully');
     return customerInfo;
   } catch (error) {
     console.error('Failed to restore purchases:', error);
@@ -139,11 +149,12 @@ export const restorePurchases = async () => {
 };
 
 export const isRevenueCatConfigured = (): boolean => {
-  return !!process.env.NEXT_PUBLIC_REVENUECAT_API_KEY && typeof window !== 'undefined';
+  const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+  return !!(apiKey && !apiKey.includes('your_revenuecat') && apiKey !== '' && isBrowser());
 };
 
 export const isRevenueCatReady = (): boolean => {
-  return isConfigured && initializationAttempted;
+  return isConfigured && !!purchasesInstance && initializationAttempted;
 };
 
 export const isPremiumUser = (customerInfo: any): boolean => {
@@ -169,4 +180,15 @@ export const getPremiumEntitlement = (customerInfo: any): string | null => {
   } catch {
     return null;
   }
+};
+
+// Force re-initialization (useful for debugging)
+export const reinitializeRevenueCat = async (userId?: string) => {
+  console.log('Force reinitializing RevenueCat...');
+  isConfigured = false;
+  isInitializing = false;
+  initializationAttempted = false;
+  purchasesInstance = null;
+  
+  await initializeRevenueCat(userId);
 };

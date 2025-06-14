@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/auth-store';
 
@@ -60,45 +60,73 @@ export default function DebugPage() {
           message: error.message,
         });
       }
+    }
 
-      // Test 4: Stripe Tables
-      try {
-        const { data, error } = await supabase
-          .from('stripe_user_subscriptions')
-          .select('*')
-          .limit(1);
-        
-        testResults.push({
-          name: 'Stripe Tables',
-          status: error ? 'error' : 'success',
-          message: error ? error.message : 'Stripe tables exist and accessible',
-        });
-      } catch (error: any) {
-        testResults.push({
-          name: 'Stripe Tables',
-          status: 'error',
-          message: error.message,
-        });
-      }
+    // Test 4: RevenueCat Configuration
+    try {
+      const { isRevenueCatConfigured, isRevenueCatReady, reinitializeRevenueCat } = await import('@/lib/revenuecat');
+      
+      const isConfigured = isRevenueCatConfigured();
+      const isReady = isRevenueCatReady();
+      
+      testResults.push({
+        name: 'RevenueCat Configuration',
+        status: isConfigured ? 'success' : 'warning',
+        message: isConfigured ? 'API key configured' : 'API key not configured',
+      });
 
-      // Test 5: Edge Functions
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-          method: 'OPTIONS',
-        });
-        
-        testResults.push({
-          name: 'Edge Functions',
-          status: response.ok ? 'success' : 'error',
-          message: response.ok ? 'Edge functions responding' : `HTTP ${response.status}`,
-        });
-      } catch (error: any) {
-        testResults.push({
-          name: 'Edge Functions',
-          status: 'error',
-          message: error.message,
-        });
+      testResults.push({
+        name: 'RevenueCat Initialization',
+        status: isReady ? 'success' : 'warning',
+        message: isReady ? 'Successfully initialized' : 'Not initialized or failed',
+      });
+
+      // Test RevenueCat connection if configured
+      if (isConfigured) {
+        try {
+          // Try to reinitialize and test
+          await reinitializeRevenueCat(user?.id);
+          
+          const { getCustomerInfo } = await import('@/lib/revenuecat');
+          const customerInfo = await getCustomerInfo();
+          
+          testResults.push({
+            name: 'RevenueCat Connection',
+            status: customerInfo ? 'success' : 'warning',
+            message: customerInfo ? 'Connected successfully' : 'Connected but no customer info',
+          });
+        } catch (error: any) {
+          testResults.push({
+            name: 'RevenueCat Connection',
+            status: 'error',
+            message: error.message || 'Connection failed',
+          });
+        }
+
+        // Test offerings
+        try {
+          const { getOfferings } = await import('@/lib/revenuecat');
+          const offerings = await getOfferings();
+          
+          testResults.push({
+            name: 'RevenueCat Offerings',
+            status: offerings.length > 0 ? 'success' : 'warning',
+            message: `Found ${offerings.length} offerings`,
+          });
+        } catch (error: any) {
+          testResults.push({
+            name: 'RevenueCat Offerings',
+            status: 'error',
+            message: error.message || 'Failed to fetch offerings',
+          });
+        }
       }
+    } catch (error: any) {
+      testResults.push({
+        name: 'RevenueCat Module',
+        status: 'error',
+        message: 'Failed to load RevenueCat module',
+      });
     }
 
     setResults(testResults);
@@ -190,7 +218,10 @@ export default function DebugPage() {
                   Testing...
                 </>
               ) : (
-                'Run Tests'
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Run Tests
+                </>
               )}
             </Button>
           </div>
@@ -222,6 +253,7 @@ export default function DebugPage() {
                       className={
                         result.status === 'success' ? 'bg-green-600 hover:bg-green-700' :
                         result.status === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                        result.status === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' :
                         ''
                       }
                     >
@@ -255,9 +287,9 @@ export default function DebugPage() {
               </Badge>
             </div>
             <div className="flex justify-between">
-              <span>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:</span>
-              <Badge variant={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? "default" : "secondary"}>
-                {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? 'Set' : 'Missing'}
+              <span>NEXT_PUBLIC_REVENUECAT_API_KEY:</span>
+              <Badge variant={process.env.NEXT_PUBLIC_REVENUECAT_API_KEY ? "default" : "secondary"}>
+                {process.env.NEXT_PUBLIC_REVENUECAT_API_KEY ? 'Set' : 'Missing'}
               </Badge>
             </div>
           </div>

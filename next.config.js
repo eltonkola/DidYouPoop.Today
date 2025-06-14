@@ -29,6 +29,12 @@ const nextConfig = {
     // Disable webpack caching to prevent EIO errors
     config.cache = false;
     
+    // Handle RevenueCat module loading
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@revenuecat/purchases-js': '@revenuecat/purchases-js',
+    };
+    
     return config;
   },
   // Add output configuration for static export compatibility
