@@ -8,8 +8,20 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { getUserSubscription, getSubscriptionPlan, formatSubscriptionStatus, formatPeriodEnd, UserSubscription } from '@/lib/subscription';
-import { restorePurchases, isRevenueCatConfigured } from '@/lib/revenuecat';
+import { 
+  getUserSubscription, 
+  getSubscriptionPlan, 
+  formatSubscriptionStatus, 
+  formatPeriodEnd, 
+  UserSubscription 
+} from '@/lib/subscription';
+import { 
+  restorePurchases, 
+  isRevenueCatConfigured, 
+  isRevenueCatReady, 
+  initializeRevenueCat,
+  getInitializationError 
+} from '@/lib/revenuecat';
 import { toast } from 'sonner';
 
 export function SubscriptionStatus() {
@@ -20,11 +32,31 @@ export function SubscriptionStatus() {
   const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
-    if (user && isRevenueCatConfigured()) {
-      loadSubscription();
-    } else {
+    if (!user) {
       setLoading(false);
+      return;
     }
+
+    // Initialize RevenueCat if not already initialized
+    if (!isRevenueCatConfigured()) {
+      console.log('[SubscriptionStatus] Initializing RevenueCat for user:', user.id);
+      initializeRevenueCat(user.id).catch(err => {
+        console.error('[SubscriptionStatus] RevenueCat initialization failed:', err);
+        toast.error('Failed to initialize subscription service');
+      });
+    }
+
+    // Wait for RevenueCat to be ready before loading subscription
+    const checkRevenueCat = async () => {
+      if (isRevenueCatReady()) {
+        loadSubscription();
+      } else {
+        // Check again after a short delay
+        setTimeout(checkRevenueCat, 500);
+      }
+    };
+
+    checkRevenueCat();
   }, [user]);
 
   const loadSubscription = async () => {
@@ -64,14 +96,39 @@ export function SubscriptionStatus() {
     return null;
   }
 
-  if (!isRevenueCatConfigured()) {
+  if (!isRevenueCatReady()) {
+    const error = getInitializationError();
+    if (error) {
+      console.error('[SubscriptionStatus] RevenueCat initialization error:', error);
+      return (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
+              <p className="text-sm text-red-600">
+                Error initializing subscription service: {error.message}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => initializeRevenueCat(user.id)}
+                className="mt-2"
+              >
+                Retry Initialization
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Card>
         <CardContent className="p-6">
           <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+            <Loader2 className="w-8 h-8 animate-spin text-gray-600 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
-              Premium features are not available at this time
+              Initializing subscription service...
             </p>
           </div>
         </CardContent>

@@ -47,17 +47,17 @@ interface RevenueCatCustomerInfoResponse {
   customerInfo: RevenueCatCustomerInfo;
 }
 
-export const initializeRevenueCat = async (userId?: string) => {
+export const initializeRevenueCat = async (userId?: string, maxRetries = 3, retryDelay = 1000) => {
   console.log('[RevenueCat] Starting initialization with userId:', userId);
   
   if (!isBrowser()) {
     console.log('[RevenueCat] Initialization skipped - not in browser');
-    return;
+    return Promise.reject(new Error('Not in browser environment'));
   }
 
   if (isConfigured || isInitializing || initializationAttempted) {
     console.log('[RevenueCat] Initialization already attempted or in progress');
-    return;
+    return Promise.resolve();
   }
 
   const apiKey = 'rcb_BanyGJtoufgcVNwnMdMWcWdfRfme';
@@ -65,41 +65,63 @@ export const initializeRevenueCat = async (userId?: string) => {
   initializationAttempted = true;
   initializationError = null;
 
-  try {
-    console.log('[RevenueCat] Attempting to import and configure...');
-    const { default: Purchases } = await import('@revenuecat/purchases-js');
+  let retries = 0;
 
-    if (!Purchases || typeof Purchases.configure !== 'function') {
-      throw new Error('RevenueCat Purchases module or configure function not found');
-    }
-
-    await Purchases.configure(apiKey, userId);
-    purchasesInstance = Purchases;
-    isConfigured = true;
-
-    console.log('[RevenueCat] Successfully configured');
-
-    // Optional test
+  const attemptInitialization = async () => {
     try {
-      const customerInfo = await Purchases.getCustomerInfo();
-      console.log('[RevenueCat] Connection test successful', {
-        hasEntitlements: Object.keys(customerInfo.entitlements || {}).length > 0,
-        activeSubscriptions: customerInfo.activeSubscriptions || []
-      });
-    } catch (testError) {
-      console.warn('[RevenueCat] Connection test failed:', testError);
+      console.log('[RevenueCat] Attempting to import and configure...');
+      const { default: Purchases } = await import('@revenuecat/purchases-js');
+
+      if (!Purchases || typeof Purchases.configure !== 'function') {
+        throw new Error('RevenueCat Purchases module or configure function not found');
+      }
+
+      await Purchases.configure(apiKey, userId);
+      purchasesInstance = Purchases;
+      isConfigured = true;
+
+      console.log('[RevenueCat] Successfully configured');
+
+      // Optional test
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        console.log('[RevenueCat] Connection test successful', {
+          hasEntitlements: Object.keys(customerInfo.entitlements || {}).length > 0,
+          activeSubscriptions: customerInfo.activeSubscriptions || []
+        });
+      } catch (testError) {
+        console.warn('[RevenueCat] Connection test failed:', testError);
+      }
+
+      return true;
+    } catch (error) {
+      retries++;
+      console.error(`[RevenueCat] Initialization attempt ${retries} failed:`, error);
+      
+      if (retries < maxRetries) {
+        console.log(`[RevenueCat] Retrying initialization in ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return attemptInitialization();
+      }
+
+      initializationError = error as Error;
+      isConfigured = false;
+      purchasesInstance = null;
+      throw error;
     }
-  } catch (error) {
-    console.error('[RevenueCat] Initialization failed:', error);
-    initializationError = error as Error;
-    isConfigured = false;
-    purchasesInstance = null;
-  } finally {
+  };
+
+  try {
+    const success = await attemptInitialization();
+    if (success) {
+      console.log('[RevenueCat] Initialization successful after', retries, 'retries');
+    }
     isInitializing = false;
-    console.log('[RevenueCat] Initialization complete', {
-      configured: isConfigured,
-      error: initializationError?.message
-    });
+    return success;
+  } catch (error) {
+    isInitializing = false;
+    console.error('[RevenueCat] Initialization failed after', retries, 'retries:', error);
+    throw error;
   }
 };
 
