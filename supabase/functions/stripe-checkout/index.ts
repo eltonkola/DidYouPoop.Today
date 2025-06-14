@@ -1,6 +1,49 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { serve } from 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { Request } from 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+// CORS headers configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, referer, user-agent, x-supabase-auth, apikey',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'false',
+};
+
+// Helper function to get origin from request headers
+const getOriginFromRequest = (req: Request): string => {
+  const origin = req.headers.get('origin') || 'https://didyoupoop.netlify.app';
+  return origin;
+};
+
+// Initialize Supabase client
+const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+const stripe = new Stripe(stripeSecret, {
+  appInfo: {
+    name: 'Bolt Integration',
+    version: '1.0.0',
+  },
+});
+
+// Main function handler
+serve(async (req: Request) => {
+  const origin = getOriginFromRequest(req);
+  
+  const headers = {
+    ...corsHeaders,
+    'Access-Control-Allow-Origin': origin,
+  };
+
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request for origin:', origin);
+    return new Response(null, {
+      status: 200,
+      headers,
+    });
+  }
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -20,14 +63,54 @@ const corsHeaders = {
   'Access-Control-Allow-Credentials': 'false',
 };
 
-Deno.serve(async (req) => {
+// Get the origin from request headers
+const getOriginFromRequest = (req: Request): string => {
+  const origin = req.headers.get('origin') || 'https://didyoupoop.netlify.app';
+  return origin;
+};
+
+Deno.serve(async (req: Request) => {
+  // Get the origin from request headers
+  const origin = getOriginFromRequest(req);
+  
+  // Update CORS headers with the specific origin
+  const headers = {
+    ...corsHeaders,
+    'Access-Control-Allow-Origin': origin,
+  };
+
+  // Always handle CORS first, regardless of method
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request for origin:', origin);
+    return new Response(null, {
+      status: 200,
+      headers,
+    });
+  }
+  // Log the request details for debugging
+  console.log('Received request:', {
+    method: req.method,
+    headers: Object.fromEntries(req.headers.entries()),
+    url: req.url
+  });
+
   // Always handle CORS first, regardless of method
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
-    return new Response(null, {
-      status: 200, // Must be 200 for preflight to succeed
-      headers: corsHeaders,
-    });
+    try {
+      const response = new Response(null, {
+        status: 200,
+        headers: corsHeaders,
+      });
+      console.log('CORS preflight response sent');
+      return response;
+    } catch (error) {
+      console.error('Error handling CORS preflight:', error);
+      return new Response(JSON.stringify({ error: 'CORS preflight failed' }), {
+        status: 500,
+        headers: corsHeaders
+      });
+    }
   }
 
   try {
@@ -36,11 +119,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
         headers: {
-          ...corsHeaders,
+          ...headers,
           'Content-Type': 'application/json',
         },
       });
     }
+
+    // Log the request body for debugging
+    const body = await req.clone().json();
+    console.log('Request body:', body);
 
     console.log('Processing checkout request');
 
@@ -264,11 +351,6 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ sessionId: session.id, url: session.url }), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    });
   } catch (error: any) {
     console.error(`Checkout error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {

@@ -47,6 +47,7 @@ export function PremiumUpgrade() {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
+          'Origin': window.location.origin,
         },
         body: JSON.stringify({
           price_id: premiumProduct.priceId,
