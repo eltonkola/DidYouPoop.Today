@@ -15,20 +15,38 @@ const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPAB
 
 Deno.serve(async (req) => {
   try {
-    // Handle OPTIONS request for CORS preflight
+    // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204 });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
     }
 
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      return new Response('Method not allowed', { 
+        status: 405,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
     // get the signature from the header
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      return new Response('No signature found', { status: 400 });
+      return new Response('No signature found', { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
     // get the raw body
@@ -41,15 +59,29 @@ Deno.serve(async (req) => {
       event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
     } catch (error: any) {
       console.error(`Webhook signature verification failed: ${error.message}`);
-      return new Response(`Webhook signature verification failed: ${error.message}`, { status: 400 });
+      return new Response(`Webhook signature verification failed: ${error.message}`, { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
     EdgeRuntime.waitUntil(handleEvent(event));
 
-    return Response.json({ received: true });
+    return Response.json({ received: true }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
   }
 });
 

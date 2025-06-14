@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { getUserSubscription, getSubscriptionPlan, formatSubscriptionStatus, formatPeriodEnd, UserSubscription } from '@/lib/subscription';
 
 export function SubscriptionStatus() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,10 @@ export function SubscriptionStatus() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpgradeClick = () => {
+    router.push('/premium');
   };
 
   if (!user) {
@@ -132,7 +138,11 @@ export function SubscriptionStatus() {
               <p className="text-sm text-muted-foreground mb-3">
                 Upgrade to premium for advanced features and cloud sync
               </p>
-              <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-white">
+              <Button 
+                size="sm" 
+                onClick={handleUpgradeClick}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
                 <Crown className="w-4 h-4 mr-2" />
                 Upgrade to Premium
               </Button>
