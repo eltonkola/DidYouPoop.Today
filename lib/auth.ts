@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 export interface AuthUser extends User {
@@ -8,7 +8,9 @@ export interface AuthUser extends User {
 export const authService = {
   // Sign up with email and password
   async signUp(email: string, password: string, fullName?: string) {
-    if (!supabase) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -43,7 +45,9 @@ export const authService = {
 
   // Sign in with email and password
   async signIn(email: string, password: string) {
-    if (!supabase) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
     
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -56,7 +60,9 @@ export const authService = {
 
   // Sign out
   async signOut() {
-    if (!supabase) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
     
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -64,7 +70,7 @@ export const authService = {
 
   // Get current user
   async getCurrentUser(): Promise<AuthUser | null> {
-    if (!supabase) return null;
+    if (!isSupabaseConfigured() || !supabase) return null;
     
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -85,7 +91,9 @@ export const authService = {
 
   // Get user profile
   async getUserProfile(userId: string) {
-    if (!supabase) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
     
     const { data, error } = await supabase
       .from('profiles')
@@ -102,7 +110,9 @@ export const authService = {
     full_name?: string;
     avatar_url?: string;
   }) {
-    if (!supabase) throw new Error('Supabase not configured');
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
     
     const { data, error } = await supabase
       .from('profiles')
@@ -120,7 +130,7 @@ export const authService = {
 
   // Check if user is premium
   async isPremiumUser(userId: string): Promise<boolean> {
-    if (!supabase) return false;
+    if (!isSupabaseConfigured() || !supabase) return false;
     
     const { data } = await supabase
       .from('profiles')

@@ -62,8 +62,8 @@ export const useAuthStore = create<AuthStore>()(
         
         set({ loading: true });
         try {
-          // Only try to get user if Supabase is configured
-          if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          // Check if Supabase is properly configured
+          if (supabase && typeof window !== 'undefined') {
             const user = await authService.getCurrentUser();
             set({ user, loading: false, initialized: true });
           } else {
@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthStore>()(
 );
 
 // Set up auth state listener only if Supabase is configured
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+if (typeof window !== 'undefined' && supabase) {
   supabase.auth.onAuthStateChange(async (event, session) => {
     const { updateUser } = useAuthStore.getState();
     
