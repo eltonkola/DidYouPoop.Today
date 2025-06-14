@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { supabase } from '@/lib/supabase';
 import { stripeProducts } from '@/src/stripe-config';
 import { toast } from 'sonner';
 
@@ -22,13 +23,29 @@ export function PremiumUpgrade() {
       return;
     }
 
+    if (!supabase) {
+      toast.error('Authentication service not available');
+      return;
+    }
+
     setLoading(true);
     
     try {
+      // Get the current session to ensure we have a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        toast.error('Please sign in again to continue');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Making checkout request with token:', session.access_token.substring(0, 20) + '...');
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -42,11 +59,18 @@ export function PremiumUpgrade() {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('Checkout error response:', data);
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
+      console.log('Checkout session created:', data);
+
       // Redirect to Stripe Checkout
-      window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast.error(error.message || 'Failed to start checkout process');
