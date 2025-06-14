@@ -55,7 +55,7 @@ export default function Home() {
           </motion.div>
         </div>
         <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
-          DidYouPoop.Today?
+          DidYouPoop.online?
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           The fun and functional way to track your gut health with poop scoring, streaks, and achievements!

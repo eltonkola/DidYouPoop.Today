@@ -48,7 +48,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
         toast.success('Welcome back! 🎉');
       } else {
         await signUp(email, password, fullName);
-        toast.success('Account created successfully! Welcome to DidYouPoop.Today! 🎉');
+        toast.success('Account created successfully! Welcome to DidYouPoop.online! 🎉');
       }
       onClose();
       resetForm();
@@ -75,7 +75,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: AuthModal
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
-            {mode === 'signin' ? 'Welcome Back!' : 'Join DidYouPoop.Today'}
+            {mode === 'signin' ? 'Welcome Back!' : 'Join DidYouPoop.online'}
           </DialogTitle>
           <DialogDescription className="text-center">
             {mode === 'signin' 

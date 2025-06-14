@@ -74,7 +74,7 @@ export function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             <span className="text-2xl">💩</span>
-            <span className="hidden sm:inline">DidYouPoop.Today</span>
+            <span className="hidden sm:inline">DidYouPoop.online</span>
             <span className="sm:hidden">DYP</span>
           </Link>
 
@@ -154,7 +154,7 @@ export function Navigation() {
                   <div className="flex flex-col gap-4 mt-8">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-2xl">💩</span>
-                      <span className="font-bold text-lg">DidYouPoop.Today</span>
+                      <span className="font-bold text-lg">DidYouPoop.online</span>
                     </div>
                     
                     {/* Sync Status for mobile */}
