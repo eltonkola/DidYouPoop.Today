@@ -11,41 +11,35 @@ const stripe = new Stripe(stripeSecret, {
   },
 });
 
-// Helper function to create responses with comprehensive CORS headers
-function corsResponse(body: string | object | null, status = 200) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, referer, user-agent',
-    'Access-Control-Max-Age': '86400',
-    'Access-Control-Allow-Credentials': 'false',
-  };
-
-  // For 204 No Content, don't include Content-Type or body
-  if (status === 204) {
-    return new Response(null, { status, headers });
-  }
-
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-    },
-  });
-}
+// CORS headers that work with all browsers and origins
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, referer, user-agent, x-supabase-auth, apikey',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'false',
+};
 
 Deno.serve(async (req) => {
-  try {
-    // Handle CORS preflight requests first
-    if (req.method === 'OPTIONS') {
-      console.log('Handling CORS preflight request');
-      return corsResponse(null, 204);
-    }
+  // Always handle CORS first, regardless of method
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
+    return new Response(null, {
+      status: 200, // Must be 200 for preflight to succeed
+      headers: corsHeaders,
+    });
+  }
 
+  try {
     if (req.method !== 'POST') {
       console.log(`Method ${req.method} not allowed`);
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     console.log('Processing checkout request');
@@ -64,13 +58,25 @@ Deno.serve(async (req) => {
 
     if (error) {
       console.log('Validation error:', error);
-      return corsResponse({ error }, 400);
+      return new Response(JSON.stringify({ error }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.log('No authorization header');
-      return corsResponse({ error: 'Authorization header required' }, 401);
+      return new Response(JSON.stringify({ error: 'Authorization header required' }), {
+        status: 401,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -81,12 +87,24 @@ Deno.serve(async (req) => {
 
     if (getUserError) {
       console.log('Auth error:', getUserError);
-      return corsResponse({ error: 'Failed to authenticate user' }, 401);
+      return new Response(JSON.stringify({ error: 'Failed to authenticate user' }), {
+        status: 401,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     if (!user) {
       console.log('No user found');
-      return corsResponse({ error: 'User not found' }, 404);
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     console.log(`Processing checkout for user: ${user.id}`);
@@ -100,7 +118,13 @@ Deno.serve(async (req) => {
 
     if (getCustomerError) {
       console.error('Failed to fetch customer information from the database', getCustomerError);
-      return corsResponse({ error: 'Failed to fetch customer information' }, 500);
+      return new Response(JSON.stringify({ error: 'Failed to fetch customer information' }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     let customerId;
@@ -136,7 +160,13 @@ Deno.serve(async (req) => {
           console.error('Failed to clean up after customer mapping error:', deleteError);
         }
 
-        return corsResponse({ error: 'Failed to create customer mapping' }, 500);
+        return new Response(JSON.stringify({ error: 'Failed to create customer mapping' }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        });
       }
 
       if (mode === 'subscription') {
@@ -155,7 +185,13 @@ Deno.serve(async (req) => {
             console.error('Failed to delete Stripe customer after subscription creation error:', deleteError);
           }
 
-          return corsResponse({ error: 'Unable to save the subscription in the database' }, 500);
+          return new Response(JSON.stringify({ error: 'Unable to save the subscription in the database' }), {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          });
         }
       }
 
@@ -176,7 +212,13 @@ Deno.serve(async (req) => {
 
         if (getSubscriptionError) {
           console.error('Failed to fetch subscription information from the database', getSubscriptionError);
-          return corsResponse({ error: 'Failed to fetch subscription information' }, 500);
+          return new Response(JSON.stringify({ error: 'Failed to fetch subscription information' }), {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          });
         }
 
         if (!subscription) {
@@ -188,7 +230,13 @@ Deno.serve(async (req) => {
 
           if (createSubscriptionError) {
             console.error('Failed to create subscription record for existing customer', createSubscriptionError);
-            return corsResponse({ error: 'Failed to create subscription record for existing customer' }, 500);
+            return new Response(JSON.stringify({ error: 'Failed to create subscription record for existing customer' }), {
+              status: 500,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            });
           }
         }
       }
@@ -214,10 +262,22 @@ Deno.serve(async (req) => {
 
     console.log(`Created checkout session ${session.id} for customer ${customerId}`);
 
-    return corsResponse({ sessionId: session.id, url: session.url });
+    return new Response(JSON.stringify({ sessionId: session.id, url: session.url }), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
   } catch (error: any) {
     console.error(`Checkout error: ${error.message}`);
-    return corsResponse({ error: error.message }, 500);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
   }
 });
 

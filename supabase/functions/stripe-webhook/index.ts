@@ -13,29 +13,32 @@ const stripe = new Stripe(stripeSecret, {
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-Deno.serve(async (req) => {
-  try {
-    // Handle CORS preflight requests with comprehensive headers
-    if (req.method === 'OPTIONS') {
-      console.log('Handling CORS preflight for webhook');
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature, x-requested-with, accept, origin, referer, user-agent',
-          'Access-Control-Max-Age': '86400',
-          'Access-Control-Allow-Credentials': 'false',
-        },
-      });
-    }
+// CORS headers that work with all browsers and origins
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature, x-requested-with, accept, origin, referer, user-agent',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'false',
+};
 
+Deno.serve(async (req) => {
+  // Always handle CORS first, regardless of method
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight for webhook');
+    return new Response(null, {
+      status: 200, // Must be 200 for preflight to succeed
+      headers: corsHeaders,
+    });
+  }
+
+  try {
     if (req.method !== 'POST') {
       console.log(`Webhook method ${req.method} not allowed`);
-      return new Response('Method not allowed', { 
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
           'Content-Type': 'application/json',
         },
       });
@@ -48,10 +51,10 @@ Deno.serve(async (req) => {
 
     if (!signature) {
       console.log('No Stripe signature found');
-      return new Response('No signature found', { 
+      return new Response(JSON.stringify({ error: 'No signature found' }), {
         status: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
           'Content-Type': 'application/json',
         },
       });
@@ -68,10 +71,10 @@ Deno.serve(async (req) => {
       console.log(`Webhook event verified: ${event.type}`);
     } catch (error: any) {
       console.error(`Webhook signature verification failed: ${error.message}`);
-      return new Response(`Webhook signature verification failed: ${error.message}`, { 
+      return new Response(JSON.stringify({ error: `Webhook signature verification failed: ${error.message}` }), {
         status: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
           'Content-Type': 'application/json',
         },
       });
@@ -80,18 +83,19 @@ Deno.serve(async (req) => {
     // Process the event asynchronously
     EdgeRuntime.waitUntil(handleEvent(event));
 
-    return Response.json({ received: true }, {
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders,
         'Content-Type': 'application/json',
       },
     });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
-    return Response.json({ error: error.message }, { 
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders,
         'Content-Type': 'application/json',
       },
     });
