@@ -68,25 +68,50 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Get current user
+  // Get current user with timeout
   async getCurrentUser(): Promise<AuthUser | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
     
-    const { data: { user } } = await supabase.auth.getUser();
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Auth timeout')), 3000);
+    });
     
-    if (!user) return null;
+    try {
+      const { data: { user } } = await Promise.race([
+        supabase.auth.getUser(),
+        timeoutPromise
+      ]);
+      
+      if (!user) return null;
 
-    // Get user profile with subscription info
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', user.id)
-      .single();
+      // Get user profile with subscription info (with timeout)
+      const profilePromise = supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+        
+      const profileTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000);
+      });
 
-    return {
-      ...user,
-      subscription_tier: profile?.subscription_tier || 'premium',
-    };
+      let profile = null;
+      try {
+        const { data } = await Promise.race([profilePromise, profileTimeoutPromise]);
+        profile = data;
+      } catch (error) {
+        console.log('Profile fetch failed, using default:', error);
+      }
+
+      return {
+        ...user,
+        subscription_tier: profile?.subscription_tier || 'premium',
+      };
+    } catch (error) {
+      console.log('getCurrentUser failed:', error);
+      return null;
+    }
   },
 
   // Get user profile
@@ -132,12 +157,17 @@ export const authService = {
   async isPremiumUser(userId: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
     
-    const { data } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
 
-    return data?.subscription_tier === 'premium';
+      return data?.subscription_tier === 'premium';
+    } catch (error) {
+      console.log('Error checking premium status:', error);
+      return false;
+    }
   },
 };

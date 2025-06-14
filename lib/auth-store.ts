@@ -61,18 +61,28 @@ export const useAuthStore = create<AuthStore>()(
         if (get().initialized) return;
         
         set({ loading: true });
+        
+        // Set a timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+          console.log('Auth initialization timeout - proceeding in free mode');
+          set({ user: null, loading: false, initialized: true });
+        }, 5000); // 5 second timeout
+        
         try {
           // Check if Supabase is properly configured
           if (supabase && typeof window !== 'undefined') {
             const user = await authService.getCurrentUser();
+            clearTimeout(timeoutId);
             set({ user, loading: false, initialized: true });
           } else {
             // No Supabase config - run in free mode
+            clearTimeout(timeoutId);
             set({ user: null, loading: false, initialized: true });
           }
         } catch (error) {
           // Fail gracefully - app works without auth
-          console.log('Auth initialization failed, running in free mode');
+          console.log('Auth initialization failed, running in free mode:', error);
+          clearTimeout(timeoutId);
           set({ user: null, loading: false, initialized: true });
         }
       },
