@@ -1,55 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp } from 'lucide-react';
+import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { stripeProducts } from '@/src/stripe-config';
+import { getOfferings, purchasePackage, isRevenueCatConfigured } from '@/lib/revenuecat';
+import { PurchasesOffering, PurchasesPackage } from '@revenuecat/purchases-js';
 import { toast } from 'sonner';
 
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [offerings, setOfferings] = useState<PurchasesOffering[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
 
-  const premiumProduct = stripeProducts[0]; // DidYouPoop Pro
+  useEffect(() => {
+    loadOfferings();
+  }, []);
+
+  const loadOfferings = async () => {
+    if (!isRevenueCatConfigured()) return;
+    
+    try {
+      const availableOfferings = await getOfferings();
+      setOfferings(availableOfferings);
+      
+      // Auto-select the first package if available
+      if (availableOfferings.length > 0 && availableOfferings[0].availablePackages.length > 0) {
+        setSelectedPackage(availableOfferings[0].availablePackages[0]);
+      }
+    } catch (error) {
+      console.error('Failed to load offerings:', error);
+    }
+  };
 
   const handleUpgrade = async () => {
-    if (!user) {
-      toast.error('Please sign in to upgrade to premium');
+    if (!selectedPackage) {
+      toast.error('Please select a subscription package');
       return;
     }
 
     setLoading(true);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price_id: premiumProduct.priceId,
-          mode: premiumProduct.mode,
-          success_url: `${window.location.origin}/premium/success`,
-          cancel_url: `${window.location.origin}/premium`,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+      const customerInfo = await purchasePackage(selectedPackage);
+      
+      if (customerInfo) {
+        toast.success('Welcome to Premium! 🎉');
+        // Redirect to success page
+        window.location.href = '/premium/success';
       }
-
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      toast.error(error.message || 'Failed to start checkout process');
+      console.error('Purchase error:', error);
+      
+      if (error.userCancelled) {
+        toast.info('Purchase cancelled');
+      } else {
+        toast.error(error.message || 'Failed to complete purchase');
+      }
     } finally {
       setLoading(false);
     }
@@ -78,6 +89,38 @@ export function PremiumUpgrade() {
     },
   ];
 
+  if (!isRevenueCatConfigured()) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-6xl mb-4">
+            <AlertCircle className="w-16 h-16 text-yellow-600" />
+          </div>
+          <h1 className="text-4xl font-bold">Premium Features Coming Soon</h1>
+          <p className="text-xl text-muted-foreground">
+            We're working on bringing you premium features. Check back soon!
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (offerings.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-6xl mb-4">
+            <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+          </div>
+          <h1 className="text-4xl font-bold">Loading Premium Options</h1>
+          <p className="text-xl text-muted-foreground">
+            Please wait while we load available subscription plans...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-4">
@@ -93,89 +136,100 @@ export function PremiumUpgrade() {
         </p>
       </div>
 
-      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 border-yellow-200 dark:border-yellow-800">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Crown className="w-6 h-6 text-yellow-600" />
-            <CardTitle className="text-2xl">{premiumProduct.name}</CardTitle>
-          </div>
-          <div className="text-4xl font-bold text-yellow-700 dark:text-yellow-300">
-            ${premiumProduct.price}
-            <span className="text-lg font-normal text-muted-foreground">
-              /{premiumProduct.interval}
-            </span>
-          </div>
-          <p className="text-muted-foreground">{premiumProduct.description}</p>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">What's included:</h3>
-            <div className="grid gap-4">
-              {features.map((feature, index) => {
-                const IconComponent = feature.icon;
-                return (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <IconComponent className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{feature.title}</h4>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
+      {offerings.map((offering) => (
+        <div key={offering.identifier} className="space-y-4">
+          {offering.availablePackages.map((pkg) => (
+            <Card 
+              key={pkg.identifier}
+              className={`bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 ${
+                selectedPackage?.identifier === pkg.identifier 
+                  ? 'border-yellow-400 ring-2 ring-yellow-200' 
+                  : 'border-yellow-200 dark:border-yellow-800'
+              } cursor-pointer transition-all`}
+              onClick={() => setSelectedPackage(pkg)}
+            >
+              <CardHeader className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Crown className="w-6 h-6 text-yellow-600" />
+                  <CardTitle className="text-2xl">{pkg.product.title}</CardTitle>
+                </div>
+                <div className="text-4xl font-bold text-yellow-700 dark:text-yellow-300">
+                  {pkg.product.priceString}
+                  {pkg.packageType === 'MONTHLY' && (
+                    <span className="text-lg font-normal text-muted-foreground">/month</span>
+                  )}
+                  {pkg.packageType === 'ANNUAL' && (
+                    <span className="text-lg font-normal text-muted-foreground">/year</span>
+                  )}
+                </div>
+                <p className="text-muted-foreground">{pkg.product.description}</p>
+              </CardHeader>
+              
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">What's included:</h3>
+                  <div className="grid gap-4">
+                    {features.map((feature, index) => {
+                      const IconComponent = feature.icon;
+                      return (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                            <IconComponent className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">{feature.title}</h4>
+                            <p className="text-sm text-muted-foreground">{feature.description}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
 
-          <Separator />
+                <Separator />
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span>Free features included</span>
-              <Check className="w-4 h-4 text-green-600" />
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span>Cancel anytime</span>
-              <Check className="w-4 h-4 text-green-600" />
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span>30-day money-back guarantee</span>
-              <Check className="w-4 h-4 text-green-600" />
-            </div>
-          </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Free features included</span>
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Cancel anytime</span>
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Secure payment processing</span>
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ))}
 
-          <Button
-            onClick={handleUpgrade}
-            disabled={loading || !user}
-            size="lg"
-            className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to Premium
-              </>
-            )}
-          </Button>
-
-          {!user && (
-            <p className="text-center text-sm text-muted-foreground">
-              Please sign in to upgrade to premium
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <Button
+        onClick={handleUpgrade}
+        disabled={loading || !selectedPackage}
+        size="lg"
+        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Crown className="w-4 h-4 mr-2" />
+            Upgrade to Premium
+          </>
+        )}
+      </Button>
 
       <div className="text-center text-sm text-muted-foreground">
         <p>
-          Secure payment processing by Stripe. Your payment information is encrypted and secure.
+          Secure payment processing by RevenueCat. Your payment information is encrypted and secure.
         </p>
       </div>
     </div>

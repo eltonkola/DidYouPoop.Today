@@ -6,18 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { getUserSubscription, getSubscriptionPlan, formatSubscriptionStatus, formatPeriodEnd, UserSubscription } from '@/lib/subscription';
+import { restorePurchases, isRevenueCatConfigured } from '@/lib/revenuecat';
+import { toast } from 'sonner';
 
 export function SubscriptionStatus() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && isRevenueCatConfigured()) {
       loadSubscription();
     } else {
       setLoading(false);
@@ -35,12 +38,45 @@ export function SubscriptionStatus() {
     }
   };
 
+  const handleRestorePurchases = async () => {
+    setRestoring(true);
+    try {
+      const customerInfo = await restorePurchases();
+      if (customerInfo) {
+        await loadSubscription();
+        toast.success('Purchases restored successfully!');
+      } else {
+        toast.info('No purchases found to restore');
+      }
+    } catch (error) {
+      console.error('Error restoring purchases:', error);
+      toast.error('Failed to restore purchases');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   const handleUpgradeClick = () => {
     router.push('/premium');
   };
 
   if (!user) {
     return null;
+  }
+
+  if (!isRevenueCatConfigured()) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <AlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Premium features are not available at this time
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (loading) {
@@ -96,59 +132,63 @@ export function SubscriptionStatus() {
           </div>
         </div>
 
-        {subscription && subscription.current_period_end && (
+        {subscription && subscription.expirationDate && (
           <>
             <Separator />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-medium">Billing Period</span>
+                <span className="font-medium">Expires</span>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {formatPeriodEnd(subscription.current_period_end)}
+                    {formatPeriodEnd(subscription.expirationDate)}
                   </span>
                 </div>
               </div>
               
-              {subscription.cancel_at_period_end && (
+              {subscription.willRenew === false && (
                 <div className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
-                  ⚠️ Your subscription will cancel at the end of the current period
+                  ⚠️ Your subscription will not renew automatically
                 </div>
               )}
             </div>
           </>
         )}
 
-        {subscription && subscription.payment_method_last4 && (
-          <>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Payment Method</span>
-              <div className="text-sm">
-                {subscription.payment_method_brand?.toUpperCase()} •••• {subscription.payment_method_last4}
-              </div>
-            </div>
-          </>
-        )}
+        <Separator />
 
-        {!plan.isPremium && (
-          <>
-            <Separator />
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3">
-                Upgrade to premium for advanced features and cloud sync
-              </p>
-              <Button 
-                size="sm" 
-                onClick={handleUpgradeClick}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to Premium
-              </Button>
-            </div>
-          </>
-        )}
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={handleRestorePurchases}
+            disabled={restoring}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            {restoring ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Restoring...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Restore Purchases
+              </>
+            )}
+          </Button>
+
+          {!plan.isPremium && (
+            <Button 
+              size="sm" 
+              onClick={handleUpgradeClick}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Upgrade to Premium
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

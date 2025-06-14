@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Settings, LogOut, Crown, CreditCard } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { getUserSubscription, getSubscriptionPlan, UserSubscription } from '@/lib/subscription';
+import { isRevenueCatConfigured } from '@/lib/revenuecat';
 import { toast } from 'sonner';
 
 export function UserMenu() {
@@ -25,7 +26,7 @@ export function UserMenu() {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && isRevenueCatConfigured()) {
       loadSubscription();
     }
   }, [user]);
@@ -97,7 +98,7 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {!plan.isPremium && (
+        {!plan.isPremium && isRevenueCatConfigured() && (
           <>
             <DropdownMenuItem onClick={() => router.push('/premium')}>
               <CreditCard className="mr-2 h-4 w-4" />

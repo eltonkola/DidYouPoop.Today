@@ -1,33 +1,49 @@
-import { supabase, isSupabaseConfigured } from './supabase';
-import { getProductByPriceId } from '@/src/stripe-config';
+import { CustomerInfo } from '@revenuecat/purchases-js';
+import { getCustomerInfo, isPremiumUser, getPremiumEntitlement } from './revenuecat';
 
 export interface UserSubscription {
-  customer_id: string;
-  subscription_id: string | null;
-  subscription_status: string;
-  price_id: string | null;
-  current_period_start: number | null;
-  current_period_end: number | null;
-  cancel_at_period_end: boolean;
-  payment_method_brand: string | null;
-  payment_method_last4: string | null;
+  isPremium: boolean;
+  entitlement: string | null;
+  expirationDate: string | null;
+  willRenew: boolean;
+  periodType: string | null;
 }
 
 export async function getUserSubscription(): Promise<UserSubscription | null> {
-  if (!isSupabaseConfigured() || !supabase) return null;
-
   try {
-    const { data, error } = await supabase
-      .from('stripe_user_subscriptions')
-      .select('*')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching subscription:', error);
-      return null;
+    const customerInfo = await getCustomerInfo();
+    
+    if (!customerInfo) {
+      return {
+        isPremium: false,
+        entitlement: null,
+        expirationDate: null,
+        willRenew: false,
+        periodType: null,
+      };
     }
 
-    return data;
+    const premium = isPremiumUser(customerInfo);
+    const entitlement = getPremiumEntitlement(customerInfo);
+    
+    let expirationDate = null;
+    let willRenew = false;
+    let periodType = null;
+    
+    if (premium && entitlement) {
+      const entitlementInfo = customerInfo.entitlements.active[entitlement];
+      expirationDate = entitlementInfo.expirationDate;
+      willRenew = entitlementInfo.willRenew;
+      periodType = entitlementInfo.periodType;
+    }
+
+    return {
+      isPremium: premium,
+      entitlement,
+      expirationDate,
+      willRenew,
+      periodType,
+    };
   } catch (error) {
     console.error('Error fetching subscription:', error);
     return null;
@@ -40,7 +56,7 @@ export function getSubscriptionPlan(subscription: UserSubscription | null): {
   isActive: boolean;
   isPremium: boolean;
 } {
-  if (!subscription || !subscription.price_id) {
+  if (!subscription || !subscription.isPremium) {
     return {
       name: 'Free',
       status: 'active',
@@ -49,14 +65,11 @@ export function getSubscriptionPlan(subscription: UserSubscription | null): {
     };
   }
 
-  const product = getProductByPriceId(subscription.price_id);
-  const isActive = ['active', 'trialing'].includes(subscription.subscription_status);
-
   return {
-    name: product?.name || 'Premium',
-    status: subscription.subscription_status,
-    isActive,
-    isPremium: isActive,
+    name: 'Premium',
+    status: subscription.willRenew ? 'active' : 'will_cancel',
+    isActive: true,
+    isPremium: true,
   };
 }
 
@@ -64,31 +77,21 @@ export function formatSubscriptionStatus(status: string): string {
   switch (status) {
     case 'active':
       return 'Active';
-    case 'trialing':
-      return 'Trial';
-    case 'past_due':
-      return 'Past Due';
+    case 'will_cancel':
+      return 'Will Cancel';
     case 'canceled':
       return 'Canceled';
-    case 'incomplete':
-      return 'Incomplete';
-    case 'incomplete_expired':
+    case 'expired':
       return 'Expired';
-    case 'unpaid':
-      return 'Unpaid';
-    case 'paused':
-      return 'Paused';
-    case 'not_started':
-      return 'Not Started';
     default:
       return status;
   }
 }
 
-export function formatPeriodEnd(timestamp: number | null): string {
-  if (!timestamp) return '';
+export function formatPeriodEnd(expirationDate: string | null): string {
+  if (!expirationDate) return '';
   
-  const date = new Date(timestamp * 1000);
+  const date = new Date(expirationDate);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

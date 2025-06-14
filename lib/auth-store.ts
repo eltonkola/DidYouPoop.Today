@@ -4,6 +4,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { authService, AuthUser } from './auth';
 import { usePoopStore } from './store';
+import { initializeRevenueCat, isRevenueCatConfigured } from './revenuecat';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -30,6 +31,11 @@ export const useAuthStore = create<AuthStore>()(
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
 
+          // Initialize RevenueCat with user ID
+          if (user && isRevenueCatConfigured()) {
+            await initializeRevenueCat(user.id);
+          }
+
           // Load user data from cloud after successful sign in
           if (user) {
             try {
@@ -50,6 +56,11 @@ export const useAuthStore = create<AuthStore>()(
           await authService.signUp(email, password, fullName);
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
+
+          // Initialize RevenueCat with user ID
+          if (user && isRevenueCatConfigured()) {
+            await initializeRevenueCat(user.id);
+          }
 
           // Sync local data to cloud after successful sign up
           if (user) {
@@ -102,6 +113,11 @@ export const useAuthStore = create<AuthStore>()(
             clearTimeout(timeoutId);
             set({ user, loading: false, initialized: true });
 
+            // Initialize RevenueCat if configured
+            if (isRevenueCatConfigured()) {
+              await initializeRevenueCat(user?.id);
+            }
+
             // Load user data from cloud if authenticated
             if (user) {
               try {
@@ -114,18 +130,33 @@ export const useAuthStore = create<AuthStore>()(
             // No Supabase config - run in free mode
             clearTimeout(timeoutId);
             set({ user: null, loading: false, initialized: true });
+            
+            // Still initialize RevenueCat for anonymous users if configured
+            if (isRevenueCatConfigured()) {
+              await initializeRevenueCat();
+            }
           }
         } catch (error) {
           // Fail gracefully - app works without auth
           console.log('Auth initialization failed, running in free mode:', error);
           clearTimeout(timeoutId);
           set({ user: null, loading: false, initialized: true });
+          
+          // Still try to initialize RevenueCat
+          if (isRevenueCatConfigured()) {
+            await initializeRevenueCat();
+          }
         }
       },
 
       updateUser: (user: AuthUser | null) => {
         const currentUser = get().user;
         set({ user });
+
+        // Initialize RevenueCat when user signs in
+        if (user && !currentUser && isRevenueCatConfigured()) {
+          initializeRevenueCat(user.id);
+        }
 
         // If user just signed in, load their cloud data
         if (user && !currentUser) {
