@@ -1,30 +1,34 @@
-import { revenueCat, SubscriptionStatus } from './revenuecat';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export interface UserSubscription {
-  isPremium: boolean;
-  isActive: boolean;
-  productId: string | null;
-  expirationDate: Date | null;
-  willRenew: boolean;
+  customer_id: string;
+  subscription_id: string | null;
+  subscription_status: string;
+  price_id: string | null;
+  current_period_start: number | null;
+  current_period_end: number | null;
+  cancel_at_period_end: boolean;
+  payment_method_brand: string | null;
+  payment_method_last4: string | null;
 }
 
 export async function getUserSubscription(): Promise<UserSubscription | null> {
+  if (!isSupabaseConfigured() || !supabase) return null;
+
   try {
-    if (!revenueCat.isInitialized()) {
-      await revenueCat.initialize();
+    const { data, error } = await supabase
+      .from('stripe_user_subscriptions')
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching subscription:', error);
+      return null;
     }
-    
-    const status = await revenueCat.getSubscriptionStatus();
-    
-    return {
-      isPremium: status.isPremium,
-      isActive: status.isActive,
-      productId: status.productId,
-      expirationDate: status.expirationDate,
-      willRenew: status.willRenew,
-    };
+
+    return data;
   } catch (error) {
-    console.error('Error fetching subscription from RevenueCat:', error);
+    console.error('Error fetching subscription:', error);
     return null;
   }
 }
@@ -35,7 +39,7 @@ export function getSubscriptionPlan(subscription: UserSubscription | null): {
   isActive: boolean;
   isPremium: boolean;
 } {
-  if (!subscription || !subscription.isPremium) {
+  if (!subscription || !subscription.price_id) {
     return {
       name: 'Free',
       status: 'active',
@@ -44,11 +48,13 @@ export function getSubscriptionPlan(subscription: UserSubscription | null): {
     };
   }
 
+  const isActive = ['active', 'trialing'].includes(subscription.subscription_status);
+
   return {
     name: 'Premium',
-    status: subscription.isActive ? 'active' : 'expired',
-    isActive: subscription.isActive,
-    isPremium: subscription.isPremium,
+    status: subscription.subscription_status,
+    isActive,
+    isPremium: isActive,
   };
 }
 
@@ -56,18 +62,31 @@ export function formatSubscriptionStatus(status: string): string {
   switch (status) {
     case 'active':
       return 'Active';
-    case 'expired':
+    case 'trialing':
+      return 'Trial';
+    case 'past_due':
+      return 'Past Due';
+    case 'canceled':
+      return 'Canceled';
+    case 'incomplete':
+      return 'Incomplete';
+    case 'incomplete_expired':
       return 'Expired';
-    case 'cancelled':
-      return 'Cancelled';
+    case 'unpaid':
+      return 'Unpaid';
+    case 'paused':
+      return 'Paused';
+    case 'not_started':
+      return 'Not Started';
     default:
       return status;
   }
 }
 
-export function formatPeriodEnd(date: Date | null): string {
-  if (!date) return '';
+export function formatPeriodEnd(timestamp: number | null): string {
+  if (!timestamp) return '';
   
+  const date = new Date(timestamp * 1000);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
