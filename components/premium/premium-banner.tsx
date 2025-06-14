@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { Crown, Sparkles, TrendingUp, Calendar, BarChart3, X } from 'lucide-reac
 import { AuthModal } from '@/components/auth/auth-modal';
 
 export function PremiumBanner() {
+  const router = useRouter();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -60,14 +62,24 @@ export function PremiumBanner() {
               </div>
             </div>
             
-            <Button 
-              size="sm"
-              onClick={() => setShowAuthModal(true)}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              Sign Up Free
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button 
+                size="sm"
+                onClick={() => setShowAuthModal(true)}
+                variant="outline"
+                className="border-yellow-600 text-yellow-700 hover:bg-yellow-50"
+              >
+                Sign Up Free
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => router.push('/premium')}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Get Premium
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

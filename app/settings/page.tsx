@@ -11,11 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, Moon, Sun, Download, Trash2, User, Mail, Shield } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { usePoopStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { SubscriptionStatus } from '@/components/premium/subscription-status';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { entries, clearAllData } = usePoopStore();
+  const { user } = useAuthStore();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const exportData = () => {
@@ -64,29 +67,52 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Shield className="w-5 h-5 text-blue-600" />
-                <div>
-                  <div className="font-medium">Anonymous User</div>
-                  <div className="text-sm text-muted-foreground">
-                    Your data is stored locally on this device
+            {user ? (
+              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">{user.user_metadata?.full_name || 'User'}</div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
                   </div>
                 </div>
+                <Badge variant="secondary">Authenticated</Badge>
               </div>
-              <Badge variant="secondary">Local Storage</Badge>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">Anonymous User</div>
+                    <div className="text-sm text-muted-foreground">
+                      Your data is stored locally on this device
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="secondary">Local Storage</Badge>
+              </div>
+            )}
             
             <div className="text-sm text-muted-foreground p-4 bg-muted rounded-lg">
               <h4 className="font-medium mb-2">Privacy Notice</h4>
               <p>
-                We respect your privacy! Your poop data is stored locally in your browser 
-                and is never transmitted to external servers. You have full control over 
-                your data and can export or delete it at any time.
+                We respect your privacy! Your poop data is {user ? 'securely stored in the cloud and' : 'stored locally in your browser and'} never shared with third parties. You have full control over your data and can export or delete it at any time.
               </p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Subscription Status for authenticated users */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-6"
+          >
+            <SubscriptionStatus />
+          </motion.div>
+        )}
 
         {/* Appearance Section */}
         <Card className="mb-6">

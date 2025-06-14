@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,11 +15,29 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Settings, LogOut, Crown, CreditCard } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { getUserSubscription, getSubscriptionPlan, UserSubscription } from '@/lib/subscription';
 import { toast } from 'sonner';
 
 export function UserMenu() {
+  const router = useRouter();
   const { user, signOut } = useAuthStore();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      loadSubscription();
+    }
+  }, [user]);
+
+  const loadSubscription = async () => {
+    try {
+      const data = await getUserSubscription();
+      setSubscription(data);
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+    }
+  };
 
   if (!user) return null;
 
@@ -38,7 +57,7 @@ export function UserMenu() {
     return email.charAt(0).toUpperCase();
   };
 
-  const isPremium = user.subscription_tier === 'premium';
+  const plan = getSubscriptionPlan(subscription);
 
   return (
     <DropdownMenu>
@@ -61,10 +80,10 @@ export function UserMenu() {
             </p>
             <div className="flex items-center gap-2 mt-2">
               <Badge 
-                variant={isPremium ? "default" : "secondary"}
-                className={isPremium ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                variant={plan.isPremium ? "default" : "secondary"}
+                className={plan.isPremium ? "bg-yellow-500 hover:bg-yellow-600" : ""}
               >
-                {isPremium ? (
+                {plan.isPremium ? (
                   <>
                     <Crown className="w-3 h-3 mr-1" />
                     Premium
@@ -78,9 +97,9 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {!isPremium && (
+        {!plan.isPremium && (
           <>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/premium')}>
               <CreditCard className="mr-2 h-4 w-4" />
               <span>Upgrade to Premium</span>
             </DropdownMenuItem>
@@ -92,7 +111,7 @@ export function UserMenu() {
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push('/settings')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>

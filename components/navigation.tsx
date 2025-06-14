@@ -14,7 +14,8 @@ import {
   Menu,
   Plus,
   BarChart3,
-  LogIn
+  LogIn,
+  Crown
 } from 'lucide-react';
 import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
@@ -96,15 +97,25 @@ export function Navigation() {
             {user ? (
               <UserMenu />
             ) : (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAuthModal(true)}
-                className="hidden sm:flex items-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowAuthModal(true)}
+                  className="hidden sm:flex items-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </Button>
+                <Button 
+                  size="sm"
+                  onClick={() => setShowAuthModal(true)}
+                  className="hidden sm:flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+                >
+                  <Crown className="w-4 h-4" />
+                  Premium
+                </Button>
+              </div>
             )}
 
             {/* Mobile Navigation */}
@@ -138,16 +149,27 @@ export function Navigation() {
 
                     {/* Sign in button for mobile */}
                     {!user && (
-                      <div className="mt-4 pt-4 border-t">
+                      <div className="mt-4 pt-4 border-t space-y-2">
                         <Button 
                           onClick={() => {
                             setShowAuthModal(true);
                             setOpen(false);
                           }}
+                          variant="outline"
                           className="w-full"
                         >
                           <LogIn className="w-4 h-4 mr-2" />
-                          Sign In for Premium
+                          Sign In
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setShowAuthModal(true);
+                            setOpen(false);
+                          }}
+                          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+                        >
+                          <Crown className="w-4 h-4 mr-2" />
+                          Get Premium
                         </Button>
                         <p className="text-xs text-muted-foreground text-center mt-2">
                           Get cloud sync and premium features!
