@@ -26,6 +26,9 @@ const nextConfig = {
       };
     }
     
+    // Disable webpack caching to prevent EIO errors
+    config.cache = false;
+    
     return config;
   },
   // Add output configuration for static export compatibility
