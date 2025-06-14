@@ -62,11 +62,11 @@ export const useAuthStore = create<AuthStore>()(
         
         set({ loading: true });
         
-        // Set a timeout to prevent infinite loading
+        // Shorter timeout to prevent hanging
         const timeoutId = setTimeout(() => {
           console.log('Auth initialization timeout - proceeding in free mode');
           set({ user: null, loading: false, initialized: true });
-        }, 5000); // 5 second timeout
+        }, 3000); // Reduced to 3 seconds
         
         try {
           // Check if Supabase is properly configured

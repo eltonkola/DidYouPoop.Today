@@ -11,10 +11,18 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { loading, initialized, initialize } = useAuthStore();
   const [mounted, setMounted] = useState(false);
+  const [forceRender, setForceRender] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     initialize();
+    
+    // Force render after a short delay to prevent infinite loading
+    const forceRenderTimeout = setTimeout(() => {
+      setForceRender(true);
+    }, 4000); // Force render after 4 seconds max
+    
+    return () => clearTimeout(forceRenderTimeout);
   }, [initialize]);
 
   // Don't render anything until component is mounted (prevents hydration issues)
@@ -30,7 +38,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Show loading only during initial auth check and only if not initialized
-  if (!initialized && loading) {
+  // But force render after timeout to prevent infinite loading
+  if (!initialized && loading && !forceRender) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">

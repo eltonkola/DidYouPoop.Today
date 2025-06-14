@@ -68,53 +68,63 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Get current user with timeout
+  // Get current user with improved timeout and error handling
   async getCurrentUser(): Promise<AuthUser | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
     
-    // Add timeout to prevent hanging
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Auth timeout')), 3000);
-    });
-    
     try {
-      const { data: { user } } = await Promise.race([
+      // Shorter timeout for auth check
+      const authTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Auth timeout')), 2000); // Reduced to 2 seconds
+      });
+      
+      const { data: { user }, error: authError } = await Promise.race([
         supabase.auth.getUser(),
-        timeoutPromise
+        authTimeoutPromise
       ]);
+      
+      if (authError) {
+        console.log('Auth error:', authError);
+        return null;
+      }
       
       if (!user) return null;
 
-      // Get user profile with subscription info (with timeout and correct query format)
-      const profilePromise = supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle missing records gracefully
-        
-      const profileTimeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000);
-      });
-
-      let profile = null;
+      // Return user with default subscription tier if profile fetch fails
+      let subscriptionTier = 'premium';
+      
       try {
-        const { data, error } = await Promise.race([profilePromise, profileTimeoutPromise]);
-        if (error) {
-          console.log('Profile fetch error:', error);
-          // If profile doesn't exist, create it
-          if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-            await this.createUserProfile(user);
+        // Very short timeout for profile fetch
+        const profileTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 1000);
+        });
+        
+        const { data: profile, error: profileError } = await Promise.race([
+          supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', user.id)
+            .maybeSingle(),
+          profileTimeoutPromise
+        ]);
+        
+        if (profileError) {
+          console.log('Profile fetch error:', profileError);
+          // Try to create profile if it doesn't exist
+          if (profileError.code === 'PGRST116' || profileError.message?.includes('No rows found')) {
+            // Don't wait for profile creation, just continue
+            this.createUserProfile(user).catch(console.error);
           }
-        } else {
-          profile = data;
+        } else if (profile) {
+          subscriptionTier = profile.subscription_tier;
         }
       } catch (error) {
-        console.log('Profile fetch failed, using default:', error);
+        console.log('Profile fetch failed, using default subscription tier:', error);
       }
 
       return {
         ...user,
-        subscription_tier: profile?.subscription_tier || 'premium',
+        subscription_tier: subscriptionTier,
       };
     } catch (error) {
       console.log('getCurrentUser failed:', error);
@@ -122,7 +132,7 @@ export const authService = {
     }
   },
 
-  // Create user profile if it doesn't exist
+  // Create user profile if it doesn't exist (non-blocking)
   async createUserProfile(user: User) {
     if (!isSupabaseConfigured() || !supabase) return;
     
