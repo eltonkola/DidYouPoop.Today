@@ -96,38 +96,36 @@ export function SubscriptionStatus() {
           </div>
         </div>
 
-        {subscription && subscription.expirationDate && (
+        {subscription && subscription.current_period_end && (
           <>
             <Separator />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-medium">
-                  {subscription.willRenew ? 'Next Renewal' : 'Expires'}
-                </span>
+                <span className="font-medium">Billing Period</span>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {formatPeriodEnd(subscription.expirationDate)}
+                    {formatPeriodEnd(subscription.current_period_end)}
                   </span>
                 </div>
               </div>
               
-              {!subscription.willRenew && subscription.isActive && (
+              {subscription.cancel_at_period_end && (
                 <div className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
-                  ⚠️ Your subscription will not renew automatically
+                  ⚠️ Your subscription will cancel at the end of the current period
                 </div>
               )}
             </div>
           </>
         )}
 
-        {subscription && subscription.productId && (
+        {subscription && subscription.payment_method_last4 && (
           <>
             <Separator />
             <div className="flex items-center justify-between">
-              <span className="font-medium">Product</span>
+              <span className="font-medium">Payment Method</span>
               <div className="text-sm">
-                {subscription.productId}
+                {subscription.payment_method_brand?.toUpperCase()} •••• {subscription.payment_method_last4}
               </div>
             </div>
           </>

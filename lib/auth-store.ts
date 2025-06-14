@@ -4,7 +4,6 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { authService, AuthUser } from './auth';
 import { usePoopStore } from './store';
-import { revenueCat } from './revenuecat';
 
 interface AuthStore {
   user: AuthUser | null;
@@ -31,16 +30,8 @@ export const useAuthStore = create<AuthStore>()(
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
 
-          // Initialize RevenueCat with user ID
+          // Load user data from cloud after successful sign in
           if (user) {
-            try {
-              await revenueCat.initialize(user.id);
-              await revenueCat.setUserId(user.id);
-            } catch (error) {
-              console.error('Failed to initialize RevenueCat after sign in:', error);
-            }
-
-            // Load user data from cloud after successful sign in
             try {
               await usePoopStore.getState().loadFromCloud(user.id);
             } catch (error) {
@@ -60,16 +51,8 @@ export const useAuthStore = create<AuthStore>()(
           const user = await authService.getCurrentUser();
           set({ user, loading: false });
 
-          // Initialize RevenueCat with user ID
+          // Sync local data to cloud after successful sign up
           if (user) {
-            try {
-              await revenueCat.initialize(user.id);
-              await revenueCat.setUserId(user.id);
-            } catch (error) {
-              console.error('Failed to initialize RevenueCat after sign up:', error);
-            }
-
-            // Sync local data to cloud after successful sign up
             try {
               const poopStore = usePoopStore.getState();
               // If user has local data, sync it to cloud
@@ -90,14 +73,6 @@ export const useAuthStore = create<AuthStore>()(
         set({ loading: true });
         try {
           await authService.signOut();
-          
-          // Log out from RevenueCat
-          try {
-            await revenueCat.logOut();
-          } catch (error) {
-            console.error('Failed to log out from RevenueCat:', error);
-          }
-          
           set({ user: null, loading: false });
           
           // Note: We don't clear local data on sign out
@@ -127,53 +102,24 @@ export const useAuthStore = create<AuthStore>()(
             clearTimeout(timeoutId);
             set({ user, loading: false, initialized: true });
 
-            // Initialize RevenueCat if user is authenticated
+            // Load user data from cloud if authenticated
             if (user) {
-              try {
-                await revenueCat.initialize(user.id);
-                await revenueCat.setUserId(user.id);
-              } catch (error) {
-                console.error('Failed to initialize RevenueCat during app initialization:', error);
-              }
-
-              // Load user data from cloud if authenticated
               try {
                 await usePoopStore.getState().loadFromCloud(user.id);
               } catch (error) {
                 console.error('Failed to load data from cloud during initialization:', error);
-              }
-            } else {
-              // Initialize RevenueCat for anonymous user
-              try {
-                await revenueCat.initialize();
-              } catch (error) {
-                console.error('Failed to initialize RevenueCat for anonymous user:', error);
               }
             }
           } else {
             // No Supabase config - run in free mode
             clearTimeout(timeoutId);
             set({ user: null, loading: false, initialized: true });
-            
-            // Still initialize RevenueCat for anonymous user
-            try {
-              await revenueCat.initialize();
-            } catch (error) {
-              console.error('Failed to initialize RevenueCat in free mode:', error);
-            }
           }
         } catch (error) {
           // Fail gracefully - app works without auth
           console.log('Auth initialization failed, running in free mode:', error);
           clearTimeout(timeoutId);
           set({ user: null, loading: false, initialized: true });
-          
-          // Still try to initialize RevenueCat
-          try {
-            await revenueCat.initialize();
-          } catch (rcError) {
-            console.error('Failed to initialize RevenueCat after auth failure:', rcError);
-          }
         }
       },
 
@@ -181,16 +127,8 @@ export const useAuthStore = create<AuthStore>()(
         const currentUser = get().user;
         set({ user });
 
-        // If user just signed in, load their cloud data and initialize RevenueCat
+        // If user just signed in, load their cloud data
         if (user && !currentUser) {
-          // Initialize RevenueCat
-          revenueCat.initialize(user.id).then(() => {
-            return revenueCat.setUserId(user.id);
-          }).catch(error => {
-            console.error('Failed to initialize RevenueCat after user update:', error);
-          });
-
-          // Load cloud data
           usePoopStore.getState().loadFromCloud(user.id).catch(error => {
             console.error('Failed to load data from cloud after user update:', error);
           });

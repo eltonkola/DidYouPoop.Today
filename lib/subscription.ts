@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getProductByPriceId } from '@/src/stripe-config';
 
 export interface UserSubscription {
   customer_id: string;
@@ -48,10 +49,11 @@ export function getSubscriptionPlan(subscription: UserSubscription | null): {
     };
   }
 
+  const product = getProductByPriceId(subscription.price_id);
   const isActive = ['active', 'trialing'].includes(subscription.subscription_status);
 
   return {
-    name: 'Premium',
+    name: product?.name || 'Premium',
     status: subscription.subscription_status,
     isActive,
     isPremium: isActive,
