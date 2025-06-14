@@ -70,12 +70,23 @@ export const initializeRevenueCat = async (userId?: string, maxRetries = 3, retr
   const attemptInitialization = async () => {
     try {
       console.log('[RevenueCat] Attempting to import and configure...');
-      const { default: Purchases } = await import('@revenuecat/purchases-js');
+      
+      // First try dynamic import
+      let Purchases;
+      try {
+        const { default: PurchasesModule } = await import('@revenuecat/purchases-js');
+        Purchases = PurchasesModule;
+        console.log('[RevenueCat] Imported module successfully');
+      } catch (importError) {
+        console.error('[RevenueCat] Failed to import module:', importError);
+        throw new Error('Failed to import RevenueCat Purchases module');
+      }
 
       if (!Purchases || typeof Purchases.configure !== 'function') {
         throw new Error('RevenueCat Purchases module or configure function not found');
       }
 
+      console.log('[RevenueCat] Configuring with API key...');
       await Purchases.configure(apiKey, userId);
       purchasesInstance = Purchases;
       isConfigured = true;
