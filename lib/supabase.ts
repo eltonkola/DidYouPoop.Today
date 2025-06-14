@@ -4,14 +4,28 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Only create client if both URL and key are provided
-export const supabase = (supabaseUrl && supabaseAnonKey) 
+// Validate that we have proper URLs and keys (not placeholders)
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url);
+    return !url.includes('your_supabase_project_url_here') && !url.includes('placeholder');
+  } catch {
+    return false;
+  }
+};
+
+const isValidKey = (key: string) => {
+  return key.length > 0 && !key.includes('your_anon_key_here') && !key.includes('placeholder');
+};
+
+// Only create client if both URL and key are valid
+export const supabase = (isValidUrl(supabaseUrl) && isValidKey(supabaseAnonKey)) 
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
 // Helper to check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  return !!(supabaseUrl && supabaseAnonKey);
+  return isValidUrl(supabaseUrl) && isValidKey(supabaseAnonKey);
 };
 
 export type Database = {
