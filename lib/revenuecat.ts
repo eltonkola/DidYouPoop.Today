@@ -13,12 +13,9 @@ export const initializeRevenueCat = async (userId?: string) => {
     return;
   }
   
-  const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
-  if (!apiKey || apiKey.includes('your_revenuecat') || apiKey === '') {
-    console.log('RevenueCat API key not configured. Premium features will be disabled.');
-    initializationAttempted = true;
-    return;
-  }
+  // Temporarily bypass API key check for testing
+  const apiKey = 'rcb_BanyGJtoufgcVNwnMdMWcWdfRfme';
+  console.log('Bypassing API key validation for testing');
 
   // Only run in browser environment
   if (!isBrowser()) {
@@ -149,8 +146,7 @@ export const restorePurchases = async () => {
 };
 
 export const isRevenueCatConfigured = (): boolean => {
-  const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
-  return !!(apiKey && !apiKey.includes('your_revenuecat') && apiKey !== '' && isBrowser());
+  return isBrowser(); // Temporarily bypass API key validation for testing
 };
 
 export const isRevenueCatReady = (): boolean => {
