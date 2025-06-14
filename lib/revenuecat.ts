@@ -60,7 +60,6 @@ export const initializeRevenueCat = async (userId?: string, maxRetries = 3, retr
     return Promise.resolve();
   }
 
-  const apiKey = 'rcb_BanyGJtoufgcVNwnMdMWcWdfRfme';
   isInitializing = true;
   initializationAttempted = true;
   initializationError = null;
@@ -69,33 +68,24 @@ export const initializeRevenueCat = async (userId?: string, maxRetries = 3, retr
 
   const attemptInitialization = async () => {
     try {
-      console.log('[RevenueCat] Attempting to import and configure...');
+      console.log('[RevenueCat] Attempting to initialize...');
       
-      // First try dynamic import
-      let Purchases;
-      try {
-        const { default: PurchasesModule } = await import('@revenuecat/purchases-js');
-        Purchases = PurchasesModule;
-        console.log('[RevenueCat] Imported module successfully');
-      } catch (importError) {
-        console.error('[RevenueCat] Failed to import module:', importError);
-        throw new Error('Failed to import RevenueCat Purchases module');
+      // Configure with user ID if provided
+      if (userId && purchasesInstance) {
+        await purchasesInstance.identify(userId);
+        console.log('[RevenueCat] User identification completed');
       }
 
-      if (!Purchases || typeof Purchases.configure !== 'function') {
-        throw new Error('RevenueCat Purchases module or configure function not found');
+      if (!purchasesInstance) {
+        throw new Error('[RevenueCat] Purchases instance not available');
       }
 
-      console.log('[RevenueCat] Configuring with API key...');
-      await Purchases.configure(apiKey, userId);
-      purchasesInstance = Purchases;
       isConfigured = true;
-
       console.log('[RevenueCat] Successfully configured');
 
       // Optional test
       try {
-        const customerInfo = await Purchases.getCustomerInfo();
+        const customerInfo = await purchasesInstance.getCustomerInfo();
         console.log('[RevenueCat] Connection test successful', {
           hasEntitlements: Object.keys(customerInfo.entitlements || {}).length > 0,
           activeSubscriptions: customerInfo.activeSubscriptions || []
@@ -117,7 +107,6 @@ export const initializeRevenueCat = async (userId?: string, maxRetries = 3, retr
 
       initializationError = error as Error;
       isConfigured = false;
-      purchasesInstance = null;
       throw error;
     }
   };
