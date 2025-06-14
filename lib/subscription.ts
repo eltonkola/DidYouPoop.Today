@@ -20,7 +20,7 @@ export async function getUserSubscription(): Promise<UserSubscription | null> {
     const { data, error } = await supabase
       .from('stripe_user_subscriptions')
       .select('*')
-      .maybeSingle();
+      .maybeSingle(); // Use maybeSingle() instead of single() to handle missing records
 
     if (error) {
       console.error('Error fetching subscription:', error);

@@ -85,12 +85,12 @@ export const authService = {
       
       if (!user) return null;
 
-      // Get user profile with subscription info (with timeout)
+      // Get user profile with subscription info (with timeout and correct query format)
       const profilePromise = supabase
         .from('profiles')
         .select('subscription_tier')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle missing records gracefully
         
       const profileTimeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Profile fetch timeout')), 2000);
@@ -98,8 +98,16 @@ export const authService = {
 
       let profile = null;
       try {
-        const { data } = await Promise.race([profilePromise, profileTimeoutPromise]);
-        profile = data;
+        const { data, error } = await Promise.race([profilePromise, profileTimeoutPromise]);
+        if (error) {
+          console.log('Profile fetch error:', error);
+          // If profile doesn't exist, create it
+          if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
+            await this.createUserProfile(user);
+          }
+        } else {
+          profile = data;
+        }
       } catch (error) {
         console.log('Profile fetch failed, using default:', error);
       }
@@ -114,6 +122,32 @@ export const authService = {
     }
   },
 
+  // Create user profile if it doesn't exist
+  async createUserProfile(user: User) {
+    if (!isSupabaseConfigured() || !supabase) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email!,
+          full_name: user.user_metadata?.full_name || null,
+          subscription_tier: 'premium',
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('Error creating user profile:', error);
+      } else {
+        console.log('User profile created successfully');
+      }
+    } catch (error) {
+      console.error('Failed to create user profile:', error);
+    }
+  },
+
   // Get user profile
   async getUserProfile(userId: string) {
     if (!isSupabaseConfigured() || !supabase) {
@@ -124,7 +158,7 @@ export const authService = {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -147,7 +181,7 @@ export const authService = {
       })
       .eq('id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -158,11 +192,16 @@ export const authService = {
     if (!isSupabaseConfigured() || !supabase) return false;
     
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('subscription_tier')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.log('Error checking premium status:', error);
+        return false;
+      }
 
       return data?.subscription_tier === 'premium';
     } catch (error) {
