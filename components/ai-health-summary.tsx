@@ -4,14 +4,12 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
-import { marked } from 'marked';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import DOMPurify from 'isomorphic-dompurify';
 
 // Configure marked to handle our formatting
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-});
+// We're using ReactMarkdown now, no need for marked configuration
 
 interface AIHealthSummaryProps {
   isPremium: boolean;
@@ -129,10 +127,31 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
           {isExpanded && (
             <div className="prose prose-sm max-w-none">
               {healthSummary ? (
-                <div 
-                  className="space-y-6"
-                  dangerouslySetInnerHTML={{ __html: healthSummary || '' }}
-                />
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl font-bold mb-4">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-xl font-semibold mb-3">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-lg font-semibold mb-2">{children}</h3>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
+                    ),
+                    li: ({ children }) => (
+                      <li className="list-item">{children}</li>
+                    ),
+                    p: ({ children }) => (
+                      <p className="mb-2">{children}</p>
+                    )
+                  }}
+                >
+                  {healthSummary}
+                </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">
                   Click the button above to get your personalized health summary
