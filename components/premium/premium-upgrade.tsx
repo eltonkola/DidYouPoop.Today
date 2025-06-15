@@ -190,7 +190,7 @@ export default function PremiumUpgrade() {
         <div className="flex justify-center items-center min-h-[200px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : !offerings || Object.keys(offerings.all).length === 0 ? (
+      ) : !offerings || !offerings.all ? (
         <div className="text-center py-8">
           <p className="text-muted-foreground">No premium plans available at this time.</p>
         </div>
@@ -202,41 +202,47 @@ export default function PremiumUpgrade() {
                 <CardTitle>{offering.displayName || offering.identifier}</CardTitle>
               </CardHeader>
               <CardContent>
-                {offering.availablePackages.map((pkg) => (
-                  <div key={pkg.identifier} className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-semibold">
-                        {pkg.storeProduct?.title || pkg.identifier}
-                      </h3>
-                      <Badge variant="premium">
-                        {pkg.storeProduct?.subscriptionPeriod?.includes('P1M') ? 'Monthly' : 'Yearly'}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground">
-                      {pkg.storeProduct?.description || pkg.identifier}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold">
-                        {pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A'}
+                {offering.availablePackages && offering.availablePackages.length > 0 ? (
+                  offering.availablePackages.map((pkg) => (
+                    <div key={pkg.identifier} className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-semibold">
+                          {pkg.storeProduct?.title || pkg.identifier}
+                        </h3>
+                        <Badge variant="default">
+                          {pkg.storeProduct?.subscriptionPeriod?.includes('P1M') ? 'Monthly' : 'Yearly'}
+                        </Badge>
                       </div>
-                      <Button
-                        onClick={() => setSelectedPackage({
-                          package: pkg,
-                          storeProduct: pkg.storeProduct,
-                          identifier: pkg.identifier,
-                          title: pkg.storeProduct?.title || pkg.identifier,
-                          description: pkg.storeProduct?.description || pkg.identifier,
-                          price: pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A',
-                          period: pkg.storeProduct?.subscriptionPeriod || 'Monthly'
-                        })}
-                        variant={selectedPackage?.package === pkg ? "default" : "outline"}
-                        className="w-full"
-                      >
-                        {selectedPackage?.package === pkg ? "Selected" : "Select"}
-                      </Button>
+                      <p className="text-muted-foreground">
+                        {pkg.storeProduct?.description || pkg.identifier}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-2xl font-bold">
+                          {pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A'}
+                        </div>
+                        <Button
+                          onClick={() => setSelectedPackage({
+                            package: pkg,
+                            storeProduct: pkg.storeProduct,
+                            identifier: pkg.identifier,
+                            title: pkg.storeProduct?.title || pkg.identifier,
+                            description: pkg.storeProduct?.description || pkg.identifier,
+                            price: pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A',
+                            period: pkg.storeProduct?.subscriptionPeriod || 'Monthly'
+                          })}
+                          variant={selectedPackage?.package === pkg ? "default" : "outline"}
+                          className="w-full"
+                        >
+                          {selectedPackage?.package === pkg ? "Selected" : "Select"}
+                        </Button>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    No packages available for this offering
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           ))}
