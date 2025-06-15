@@ -52,108 +52,43 @@ const COMMON_PRODUCTS = {
   }
 };
 
+// Helper function to get formatted price
+const getFormattedPrice = (product: any): string => {
+  if (!product) {
+    console.log('Product is undefined');
+    return 'N/A';
+  }
+
+  // Try to get price from webBillingProduct or rcBillingProduct
+  const priceInfo = product.webBillingProduct?.currentPrice || product.rcBillingProduct?.currentPrice;
+  if (!priceInfo) {
+    console.log('No price info found');
+    return 'N/A';
+  }
+
+  // Use formattedPrice directly from priceInfo
+  return priceInfo.formattedPrice;
+};
+
 // Helper function to get period
 const getPeriod = (product: any): string => {
   if (!product) {
     console.log('Product is undefined');
     return 'Monthly';
   }
-  
-  // Log all available period properties
-  console.log('Product period properties:', {
-    id: product.identifier,
-    storeProduct: product.storeProduct,
-    subscription_period: product.subscription_period,
-    period: product.period,
-    subscriptionPeriod: product.subscriptionPeriod,
-    duration: product.duration,
-    subscriptionPeriods: product.subscriptionPeriods
-  });
-  
-  // First check if we have a storeProduct with period info
-  if (product.storeProduct) {
-    console.log('Store product found:', {
-      identifier: product.storeProduct.identifier,
-      period: product.storeProduct.period,
-      subscriptionPeriod: product.storeProduct.subscriptionPeriod,
-      subscription_period: product.storeProduct.subscription_period,
-      duration: product.storeProduct.duration
-    });
-    
-    if (product.storeProduct.period) {
-      return product.storeProduct.period;
-    }
-  }
-  
-  // Then check the subscriptionPeriods array if it exists
-  if (product.subscriptionPeriods?.length) {
-    const period = product.subscriptionPeriods[0];
-    if (period) {
-      console.log('Found period in subscriptionPeriods:', period);
-      if (period.periodType === 'MONTH' || period.periodType === 'MONTHLY') {
-        return 'Monthly';
-      } else if (period.periodType === 'YEAR' || period.periodType === 'YEARLY') {
-        return 'Yearly';
-      }
-    }
-  }
-  
-  // Then check other period properties
-  const period = product.subscription_period || 
-                product.subscriptionPeriod || 
-                product.period || 
-                product.duration;
-  
-  if (!period) {
-    console.log('No period found');
+
+  // Try to get period from webBillingProduct or rcBillingProduct
+  const periodDuration = product.webBillingProduct?.normalPeriodDuration || product.rcBillingProduct?.normalPeriodDuration;
+  if (!periodDuration) {
+    console.log('No period duration found');
     return 'Monthly';
   }
-  
-  console.log('Raw period:', period);
-  
-  // Convert period string to human-readable format
-  if (period.includes('P1M') || period.includes('month')) return 'Monthly';
-  if (period.includes('P1Y') || period.includes('year')) return 'Yearly';
-  
-  return period;
-};
 
-// Helper function to get formatted price
-const getFormattedPrice = (product: StoreProduct | undefined): string => {
-  if (!product) {
-    console.log('Product is undefined');
-    return 'N/A';
-  }
-  
-  // Log all available price properties
-  console.log('Product price properties:', {
-    id: product.identifier,
-    price: product.price,
-    price_string: product.price_string,
-    displayPrice: product.displayPrice,
-    priceNumber: typeof product.price === 'string' ? parseFloat(product.price as string) : product.price,
-    priceType: typeof product.price
-  });
-  
-  // Try different price formats
-  let price: number | undefined;
-  if (typeof product.price === 'string') {
-    price = parseFloat(product.price);
-  } else if (typeof product.price === 'number') {
-    price = product.price;
-  } else if (product.price_string) {
-    price = parseFloat(product.price_string);
-  } else if (product.displayPrice) {
-    price = parseFloat(product.displayPrice);
-  }
-  
-  if (!price || isNaN(price)) {
-    console.log('No valid price found');
-    return 'N/A';
-  }
-  
-  const period = getPeriod(product);
-  
+  // Convert period string to human-readable format
+  if (periodDuration.includes('P1M') || periodDuration.includes('month')) return 'Monthly';
+  if (periodDuration.includes('P1Y') || periodDuration.includes('year')) return 'Yearly';
+
+  return periodDuration;
   if (period === 'Monthly') {
     return `$${price.toFixed(2)}/month`;
   } else if (period === 'Yearly') {
