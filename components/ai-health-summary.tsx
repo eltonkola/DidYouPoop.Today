@@ -50,23 +50,17 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
 
       const data = await response.json();
       // Format the response to make it more readable
-      // Format the response to make it more readable
       const rawResponse = data.choices[0].message.content;
-      // Convert to markdown with proper formatting
-      const markdownResponse = rawResponse
-        .replace(/\*\*([^*]+)\*\*/g, '# $1')  // Convert **bold** to # headings
-        .replace(/\+ ([^\n]+)/g, '- $1')      // Convert + lists to - lists
-        .replace(/\* ([^\n]+)/g, '- $1')      // Convert * lists to - lists
-        .replace(/\n\n/, '\n\n\n');         // Add extra spacing between sections
+      // Format the response with proper spacing and bullet points
+      const formattedResponse = rawResponse
+        .replace(/\n\n/, '\n\n\n')  // Add extra spacing between sections
+        .replace(/\+ ([^\n]+)/g, '- $1')  // Convert + lists to - lists
+        .replace(/\* ([^\n]+)/g, '- $1')  // Convert * lists to - lists;
 
-      // Convert markdown to HTML
-      const htmlResponse = marked(markdownResponse);
-      // Sanitize the HTML
-      const cleanHtml = DOMPurify.sanitize(htmlResponse);
+      // Sanitize the response
+      const cleanHtml = DOMPurify.sanitize(formattedResponse);
       
       setHealthSummary(cleanHtml);
-      setIsExpanded(true);
-      setHealthSummary(formattedResponse);
       setIsExpanded(true);
     } catch (error) {
       console.error('Error analyzing poop data:', error);
