@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
 
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
@@ -15,10 +16,12 @@ export function PremiumUpgrade() {
 
   useEffect(() => {
     // Initialize RevenueCat SDK
-    initializeRevenueCat(user?.id).catch(error => {
-      console.error('Failed to initialize RevenueCat:', error);
-      toast.error('Failed to initialize premium features');
-    });
+    if (user) {
+      initializeRevenueCat(user.id).catch(error => {
+        console.error('Failed to initialize RevenueCat:', error);
+        toast.error('Failed to initialize premium features');
+      });
+    }
   }, [user]);
 
   const handleUpgrade = async () => {

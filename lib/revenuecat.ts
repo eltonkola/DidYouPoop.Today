@@ -1,3 +1,5 @@
+import { Offering, Package } from '@revenuecat/purchases-js';
+
 let isConfigured = false;
 let isInitializing = false;
 let initializationAttempted = false;
@@ -70,7 +72,7 @@ export const initializeRevenueCat = async (userId?: string) => {
   }
 };
 
-export const getOfferings = async () => {
+export const getOfferings = async (): Promise<Offering[]> => {
   if (!isConfigured || !purchasesInstance) {
     console.warn('RevenueCat not configured');
     return [];
@@ -85,7 +87,8 @@ export const getOfferings = async () => {
       return [];
     }
     
-    const offeringsArray = Object.values(offerings.all);
+    // Type assertion to ensure we get the correct type
+    const offeringsArray = Object.values(offerings.all) as Offering[];
     console.log(`Found ${offeringsArray.length} offerings`);
     
     return offeringsArray;
