@@ -14,26 +14,55 @@ export function PremiumUpgrade() {
   const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
 
   useEffect(() => {
-    // Use the RevenueCat Pages link
-    // Replace this with your actual RevenueCat Pages link from your dashboard
-    const REVENUECAT_PAGES_LINK = 'https://pay.rev.cat/plcfzthiuxggwmvv/';
-    
-    // If you have an authenticated user, append their App User ID
-    const link = user ? 
-      `${REVENUECAT_PAGES_LINK}?app_user_id=${user.id}` : 
-      REVENUECAT_PAGES_LINK;
-
-    setPurchaseLink(link);
+    // Initialize RevenueCat SDK
+    initializeRevenueCat(user?.id).catch(error => {
+      console.error('Failed to initialize RevenueCat:', error);
+      toast.error('Failed to initialize premium features');
+    });
   }, [user]);
 
-  const handleUpgrade = () => {
-    if (!purchaseLink) {
-      toast.error('Purchase system not configured');
-      return;
-    }
+  const handleUpgrade = async () => {
+    try {
+      // Get offerings
+      const offerings = await getOfferings();
+      if (!offerings.length) {
+        toast.error('No premium plans available');
+        return;
+      }
 
-    // Open the RevenueCat Pages link in a new window/tab
-    window.open(purchaseLink, '_blank');
+      // Get customer info
+      const customerInfo = await getCustomerInfo();
+      if (isPremiumUser(customerInfo)) {
+        toast.info('You already have a premium subscription');
+        return;
+      }
+
+      // Show the first offering (you might want to implement a selection UI)
+      const offering = offerings[0];
+      if (!offering) {
+        toast.error('No premium plan found');
+        return;
+      }
+
+      // Get the first package from the offering
+      const packageToPurchase = offering.availablePackages[0];
+      if (!packageToPurchase) {
+        toast.error('No package found in offering');
+        return;
+      }
+
+      // Purchase the package
+      await purchasePackage(packageToPurchase);
+      toast.success('Premium subscription purchased successfully!');
+      router.push('/premium/success');
+    } catch (error: any) {
+      if (error.userCancelled) {
+        // User cancelled the purchase
+        return;
+      }
+      console.error('Purchase failed:', error);
+      toast.error(error.message || 'Failed to purchase premium subscription');
+    }
   };
 
   const features = [

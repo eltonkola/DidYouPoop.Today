@@ -1,61 +1,194 @@
-// RevenueCat Pages configuration
-export type CustomerInfo = {
-  entitlements: {
-    active: Record<string, {
-      product_identifier: string;
-      expires_date: string;
-    }>;
-  };
-};
+let isConfigured = false;
+let isInitializing = false;
+let initializationAttempted = false;
+let purchasesInstance: any = null;
 
-export const isPremiumUser = (customerInfo: CustomerInfo): boolean => {
-  if (!customerInfo?.entitlements?.active) return false;
-  return Object.values(customerInfo.entitlements.active).some(entitlement => 
-    entitlement.product_identifier === 'premium_monthly' || 
-    entitlement.product_identifier === 'premium_yearly'
-  );
-};
-
-export const getPremiumEntitlement = (customerInfo: CustomerInfo): string | null => {
-  if (!customerInfo?.entitlements?.active) return null;
-  const activeEntitlements = Object.values(customerInfo.entitlements.active);
-  if (activeEntitlements.length === 0) return null;
-  
-  // Return the product identifier of the active premium entitlement
-  return activeEntitlements.find(e => 
-    e.product_identifier === 'premium_monthly' || 
-    e.product_identifier === 'premium_yearly'
-  )?.product_identifier || null;
-};
+// Check if we're in a browser environment
+const isBrowser = () => typeof window !== 'undefined';
 
 export const initializeRevenueCat = async (userId?: string) => {
-  console.log('RevenueCat Pages initialization skipped - using hosted purchase pages');
-  return;
+  // Prevent multiple initialization attempts
+  if (isConfigured || isInitializing || initializationAttempted) {
+    console.log('RevenueCat initialization already attempted or in progress');
+    return;
+  }
+  
+  const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+  if (!apiKey || apiKey.includes('your_revenuecat') || apiKey === '') {
+    console.log('RevenueCat API key not configured. Premium features will be disabled.');
+    initializationAttempted = true;
+    return;
+  }
+
+  // Only run in browser environment
+  if (!isBrowser()) {
+    console.log('RevenueCat initialization skipped - not in browser environment');
+    return;
+  }
+
+  isInitializing = true;
+  initializationAttempted = true;
+
+  try {
+    console.log('Attempting to initialize RevenueCat...');
+    
+    // Dynamic import with better error handling
+    const RevenueCatModule = await import('@revenuecat/purchases-js');
+    const Purchases = RevenueCatModule.Purchases;
+    
+    if (!Purchases) {
+      throw new Error('RevenueCat module not found');
+    }
+
+    // Configure RevenueCat
+    const instance = await Purchases.configure(
+      apiKey,
+      userId || Purchases.generateRevenueCatAnonymousAppUserId(),
+      undefined
+    );
+    
+    // Store the instance
+    purchasesInstance = instance;
+    isConfigured = true;
+    
+    console.log('RevenueCat initialized successfully');
+    
+    // Test the connection
+    try {
+      const customerInfo = await instance.getCustomerInfo();
+      console.log('RevenueCat connection test successful');
+    } catch (testError) {
+      console.warn('RevenueCat connection test failed:', testError);
+    }
+    
+  } catch (error) {
+    console.error('Failed to initialize RevenueCat:', error);
+    isConfigured = false;
+    purchasesInstance = null;
+  } finally {
+    isInitializing = false;
+  }
 };
 
-export const getOfferings = async () => [];
+export const getOfferings = async () => {
+  if (!isConfigured || !purchasesInstance) {
+    console.warn('RevenueCat not configured');
+    return [];
+  }
+
+  try {
+    console.log('Fetching RevenueCat offerings...');
+    const offerings = await purchasesInstance.getOfferings();
+    
+    if (!offerings || !offerings.all) {
+      console.warn('No offerings found');
+      return [];
+    }
+    
+    const offeringsArray = Object.values(offerings.all);
+    console.log(`Found ${offeringsArray.length} offerings`);
+    
+    return offeringsArray;
+  } catch (error) {
+    console.error('Failed to get offerings:', error);
+    return [];
+  }
+};
 
 export const purchasePackage = async (packageToPurchase: any) => {
-  console.log('RevenueCat Pages - purchase handled by hosted pages');
-  return;
+  if (!isConfigured || !purchasesInstance) {
+    throw new Error('RevenueCat not configured');
+  }
+
+  try {
+    console.log('Attempting to purchase package:', packageToPurchase.identifier);
+    const { customerInfo } = await purchasesInstance.purchasePackage(packageToPurchase);
+    console.log('Purchase successful');
+    return customerInfo;
+  } catch (error: any) {
+    console.error('Purchase failed:', error);
+    
+    // Handle specific error types
+    if (error.userCancelled) {
+      throw { userCancelled: true, message: 'Purchase was cancelled' };
+    }
+    
+    throw error;
+  }
 };
 
 export const getCustomerInfo = async () => {
-  console.log('RevenueCat Pages - customer info handled by hosted pages');
-  return null;
+  if (!isConfigured || !purchasesInstance) {
+    console.warn('RevenueCat not configured');
+    return null;
+  }
+
+  try {
+    const customerInfo = await purchasesInstance.getCustomerInfo();
+    return customerInfo;
+  } catch (error) {
+    console.error('Failed to get customer info:', error);
+    return null;
+  }
 };
 
 export const restorePurchases = async () => {
-  console.log('RevenueCat Pages - purchase restoration handled by hosted pages');
-  return;
+  if (!isConfigured || !purchasesInstance) {
+    throw new Error('RevenueCat not configured');
+  }
+
+  try {
+    console.log('Restoring purchases...');
+    const { customerInfo } = await purchasesInstance.restorePurchases();
+    console.log('Purchases restored successfully');
+    return customerInfo;
+  } catch (error) {
+    console.error('Failed to restore purchases:', error);
+    throw error;
+  }
 };
 
 export const isRevenueCatConfigured = (): boolean => {
-  console.log('RevenueCat Pages - configuration handled by hosted pages');
-  return true;
+  const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY;
+  return !!(apiKey && !apiKey.includes('your_revenuecat') && apiKey !== '' && isBrowser());
 };
 
 export const isRevenueCatReady = (): boolean => {
-  console.log('RevenueCat Pages - ready check handled by hosted pages');
-  return true;
+  return isConfigured && !!purchasesInstance && initializationAttempted;
+};
+
+export const isPremiumUser = (customerInfo: any): boolean => {
+  if (!customerInfo) return false;
+  
+  try {
+    // Check if user has any active entitlements
+    const entitlements = customerInfo.entitlements?.active || {};
+    return Object.keys(entitlements).length > 0;
+  } catch {
+    return false;
+  }
+};
+
+export const getPremiumEntitlement = (customerInfo: any): string | null => {
+  if (!customerInfo) return null;
+  
+  try {
+    const entitlements = customerInfo.entitlements?.active || {};
+    const entitlementKeys = Object.keys(entitlements);
+    
+    return entitlementKeys.length > 0 ? entitlementKeys[0] : null;
+  } catch {
+    return null;
+  }
+};
+
+// Force re-initialization (useful for debugging)
+export const reinitializeRevenueCat = async (userId?: string) => {
+  console.log('Force reinitializing RevenueCat...');
+  isConfigured = false;
+  isInitializing = false;
+  initializationAttempted = false;
+  purchasesInstance = null;
+  
+  await initializeRevenueCat(userId);
 };
