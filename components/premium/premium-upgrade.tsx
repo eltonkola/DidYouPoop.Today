@@ -1,26 +1,20 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { useAuthStore } from '@/lib/auth-store';
-import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
-import { Offering, Package, PurchaseResult, Product } from '@revenuecat/purchases-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
+import { useAuthStore } from '@/lib/auth-store';
+import { toast } from 'sonner';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
+import { Package } from '@revenuecat/purchases-js';
 import { ReactNode } from 'react';
 
-// Type definitions
-interface ExtendedPackage {
-  package: any;
-  identifier: string;
-  title: string;
-  description: string;
-  price: string;
-  period: string;
+// Extended Package interface with our additional properties
+interface ExtendedPackage extends Package {
+  storeProduct?: StoreProduct;
 }
 
 // Type definitions
@@ -44,22 +38,6 @@ interface StoreProduct {
     periodType?: string;
     numberOfUnits?: number;
   }[];
-  webBillingProduct?: {
-    title?: string;
-    description?: string;
-    currentPrice?: {
-      formattedPrice?: string;
-    };
-    normalPeriodDuration?: string;
-  };
-  rcBillingProduct?: {
-    title?: string;
-    description?: string;
-    currentPrice?: {
-      formattedPrice?: string;
-    };
-    normalPeriodDuration?: string;
-  };
 }
 
 // Constants for common identifiers
@@ -74,205 +52,373 @@ const COMMON_PRODUCTS = {
   }
 };
 
-// Helper function to get formatted price
-const getFormattedPrice = (pkg: ExtendedPackage): string => {
-  if (!pkg) {
-    console.log('Package is undefined');
-    return 'N/A';
-  }
-
-  // Use price from package
-  return pkg.price || 'N/A';
-};
-
 // Helper function to get period
-const getPeriod = (pkg: ExtendedPackage): string => {
-  if (!pkg) {
-    console.log('Package is undefined');
+const getPeriod = (product: StoreProduct | undefined): string => {
+  if (!product) {
+    console.log('Product is undefined');
     return 'Monthly';
   }
+  
+  // Log all available period properties
+  console.log('Product period properties:', {
+    id: product.identifier,
+    subscription_period: product.subscription_period,
+    period: product.period,
+    subscriptionPeriod: product.subscriptionPeriod,
+    duration: product.duration,
+    subscriptionPeriods: product.subscriptionPeriods
+  });
+  
+  // Try different period formats
+  // First check the subscriptionPeriods array if it exists
+  if (product.subscriptionPeriods?.length) {
+    const period = product.subscriptionPeriods[0];
+    if (period) {
+      console.log('Found period in subscriptionPeriods:', period);
+      if (period.periodType === 'MONTH' || period.periodType === 'MONTHLY') {
+        return 'Monthly';
+      } else if (period.periodType === 'YEAR' || period.periodType === 'YEARLY') {
+        return 'Yearly';
+      }
+    }
+  }
+  
+  // Then check other period properties
+  const period = product.subscription_period || 
+                product.subscriptionPeriod || 
+                product.period || 
+                product.duration;
+  
+  if (!period) {
+    console.log('No period found');
+    return 'Monthly';
+  }
+  
+  console.log('Raw period:', period);
+  
+  // Convert period string to human-readable format
+  if (period.includes('P1M') || period.includes('month')) return 'Monthly';
+  if (period.includes('P1Y') || period.includes('year')) return 'Yearly';
+  
+  return period;
+};
 
-  return pkg.period;
+// Helper function to get formatted price
+const getFormattedPrice = (product: StoreProduct | undefined): string => {
+  if (!product) {
+    console.log('Product is undefined');
+    return 'N/A';
+  }
+  
+  // Log all available price properties
+  console.log('Product price properties:', {
+    id: product.identifier,
+    price: product.price,
+    price_string: product.price_string,
+    displayPrice: product.displayPrice,
+    priceNumber: typeof product.price === 'string' ? parseFloat(product.price as string) : product.price,
+    priceType: typeof product.price
+  });
+  
+  // Try different price formats
+  let price: number | undefined;
+  if (typeof product.price === 'string') {
+    price = parseFloat(product.price);
+  } else if (typeof product.price === 'number') {
+    price = product.price;
+  } else if (product.price_string) {
+    price = parseFloat(product.price_string);
+  } else if (product.displayPrice) {
+    price = parseFloat(product.displayPrice);
+  }
+  
+  if (!price || isNaN(price)) {
+    console.log('No valid price found');
+    return 'N/A';
+  }
+  
+  const period = getPeriod(product);
+  
+  if (period === 'Monthly') {
+    return `$${price.toFixed(2)}/month`;
+  } else if (period === 'Yearly') {
+    const yearlyPrice = price;
+    const monthlyPrice = yearlyPrice / 12;
+    return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
+  }
+  
+  return `$${price.toFixed(2)}`;
 };
 
 // Helper function to get title
 const getPackageTitle = (pkg: ExtendedPackage): string => {
-  if (!pkg) {
-    return 'Unknown Package';
+  if (!pkg) return 'Unknown Package';
+  
+  const product = pkg.storeProduct;
+  if (!product) return pkg.identifier || 'Unknown Package';
+  
+  const productTitle = product.title || product.name || product.displayName;
+  if (productTitle) return productTitle;
+  
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly Premium';
+  } else if (period === 'Yearly') {
+    return 'Annual Premium (Save 20%)';
   }
-
-  return pkg.title;
+  return pkg.identifier || 'Unknown Package';
 };
 
 // Helper function to get description
 const getPackageDescription = (pkg: ExtendedPackage): string => {
   if (!pkg) return '';
-
-  return pkg.description;
+  
+  const product = pkg.storeProduct;
+  if (!product) return '';
+  
+  const productDescription = product.description || product.summary || product.localizedDescription;
+  if (productDescription) return productDescription;
+  
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly subscription with all premium features';
+  } else if (period === 'Yearly') {
+    return 'Annual subscription with all premium features (20% off)';
+  }
+  return 'Premium subscription with all features';
 };
 
-export default function PremiumUpgrade() {
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [offerings, setOfferings] = useState<Offering | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<ExtendedPackage | null>(null);
-  const router = useRouter();
+export function PremiumUpgrade() {
   const { user } = useAuthStore();
+  const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
 
   useEffect(() => {
-    initializeRevenueCat();
-  }, []);
+    // Initialize RevenueCat SDK and fetch offerings
+    if (user) {
+      initializeRevenueCat(user.id).catch(error => {
+        console.error('Failed to initialize RevenueCat:', error);
+        toast.error('Failed to initialize premium features');
+      });
 
-  const initializeRevenueCat = async () => {
-    try {
-      setIsInitializing(true);
-      setError(null);
-      
-      // Initialize RevenueCat
-      const instance = await Purchases.configure(
-        process.env.NEXT_PUBLIC_REVENUECAT_API_KEY || '',
-        useAuthStore.getState().user?.id || Purchases.generateRevenueCatAnonymousAppUserId(),
-        undefined
-      );
-
-      // Get offerings
-      const offerings = await instance.getOfferings();
-      setOfferings(offerings);
-
-      console.log('RevenueCat initialized successfully');
-      return instance;
-    } catch (err) {
-      console.error('Error initializing RevenueCat:', err);
-      setError('Failed to initialize subscription system. Please try again later.');
-      throw err;
-    } finally {
-      setIsInitializing(false);
+      // Fetch offerings
+      getOfferings().then(fetchedOfferings => {
+        setOfferings(fetchedOfferings);
+        setLoading(false);
+      }).catch(error => {
+        console.error('Failed to fetch offerings:', error);
+        toast.error('Failed to load premium plans');
+        setLoading(false);
+      });
     }
-  };
+  }, [user]);
 
   const handleUpgrade = async () => {
-    if (!selectedPackage) {
-      toast.error('Please select a subscription plan first');
-      return;
-    }
-
     try {
-      // Use the instance from initializeRevenueCat
-      const instance = await initializeRevenueCat();
+      if (!selectedPackage) {
+        toast.error('Please select a package first');
+        return;
+      }
+
+      // Get customer info
+      const customerInfo = await getCustomerInfo();
+      if (isPremiumUser(customerInfo)) {
+        toast.info('You already have a premium subscription');
+        return;
+      }
 
       // Purchase the selected package
-      const purchaseResult = await instance.purchasePackage(selectedPackage.package);
-
-      if (purchaseResult) {
-        toast.success('Successfully upgraded to premium!');
-        router.push('/premium/success');
-      } else {
-        toast.error('Purchase failed. Please try again.');
+      await purchasePackage(selectedPackage as ExtendedPackage);
+      toast.success('Premium subscription purchased successfully!');
+      router.push('/premium/success');
+    } catch (error: any) {
+      if (error.userCancelled) {
+        // User cancelled the purchase
+        return;
       }
-    } catch (err) {
-      console.error('Error during purchase:', err);
-      toast.error('Error during purchase. Please try again.');
+      console.error('Purchase failed:', error);
+      toast.error(error.message || 'Failed to purchase premium subscription');
     }
   };
 
+  const features = [
+    {
+      icon: BarChart3,
+      title: 'Advanced Analytics',
+      description: 'Detailed insights into your gut health patterns and trends',
+    },
+    {
+      icon: Calendar,
+      title: 'Cross-Device Sync',
+      description: 'Access your data from any device with cloud synchronization',
+    },
+    {
+      icon: TrendingUp,
+      title: 'Premium Insights',
+      description: 'AI-powered recommendations for better digestive health',
+    },
+    {
+      icon: Star,
+      title: 'Priority Support',
+      description: 'Get help faster with premium customer support',
+    },
+  ];
+
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-4">Premium Upgrade</h1>
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{error}</span>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-2 text-6xl mb-4">
+          <Crown className="w-16 h-16 text-yellow-600" />
+          <Sparkles className="w-12 h-12 text-yellow-500" />
         </div>
-      )}
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+          Upgrade to Premium
+        </h1>
+        <p className="text-xl text-muted-foreground">
+          Unlock advanced features and take your gut health tracking to the next level!
+        </p>
+      </div>
 
-      {isInitializing ? (
-        <div className="flex justify-center items-center min-h-[200px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : offerings && offerings.all ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Object.values(offerings.all).map((offering) => (
-            <Card key={offering.identifier}>
-              <CardHeader>
-                <CardTitle>{offering.displayName || offering.identifier}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {offering.availablePackages && offering.availablePackages.length > 0 ? (
-                  offering.availablePackages.map((pkg) => (
-                    <div key={pkg.identifier} className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-semibold">
-                          {pkg.webBillingProduct?.title || pkg.identifier}
-                        </h3>
-                        <Badge variant="default">
-                          {pkg.webBillingProduct?.normalPeriodDuration?.includes('P1M') ? 'Monthly' : 'Yearly'}
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground">
-                        {pkg.webBillingProduct?.description || pkg.identifier}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold">
-                          {pkg.webBillingProduct?.currentPrice?.formattedPrice || 'N/A'}
-                        </div>
-                        <Button
-                          onClick={() => setSelectedPackage({
-                            package: pkg,
-                            identifier: pkg.identifier,
-                            title: pkg.webBillingProduct?.title || pkg.identifier,
-                            description: pkg.webBillingProduct?.description || pkg.identifier,
-                            price: pkg.webBillingProduct?.currentPrice?.formattedPrice || 'N/A',
-                            period: pkg.webBillingProduct?.normalPeriodDuration || 'Monthly'
-                          })}
-                          variant={selectedPackage?.package === pkg ? "default" : "outline"}
-                          className="w-full"
-                        >
-                          {selectedPackage?.package === pkg ? "Selected" : "Select"}
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-4">
-                    No packages available for this offering
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No premium plans available at this time.</p>
-        </div>
-      )}
-
-      {selectedPackage && !isInitializing && (
-        <div className="mt-8">
-          <Separator />
-          <div className="mt-4">
-            <Button
-              onClick={handleUpgrade}
-              className="w-full"
-              disabled={isInitializing}
-            >
-              {isInitializing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Crown className="w-4 h-4 mr-2" />
-                  Upgrade to Selected Plan
-                </>
-              )}
-            </Button>
+      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 border-yellow-200 dark:border-yellow-800">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Crown className="w-6 h-6 text-yellow-600" />
+            <CardTitle className="text-2xl">Premium Plans</CardTitle>
           </div>
-        </div>
-      )}
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
+            </div>
+          ) : offerings.length === 0 ? (
+            <div className="text-center text-muted-foreground">
+              No premium plans available
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {offerings.map((offering, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
+                  <h3 className="font-semibold mb-4">Premium</h3>
+                  <div className="space-y-4">
+                    {offering.availablePackages.map((pkg, pkgIndex) => (
+                      <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{getPackageTitle(pkg)}</h4>
+                            <p className="text-sm text-muted-foreground">{getPackageDescription(pkg)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                              {(() => {
+                                console.log('Rendering price for package:', pkg.identifier, pkg.storeProduct);
+                                return getFormattedPrice(pkg.storeProduct) as ReactNode;
+                              })()}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {(() => {
+                                console.log('Rendering period for package:', pkg.identifier, pkg.storeProduct);
+                                return getPeriod(pkg.storeProduct) as ReactNode;
+                              })()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id={`package-${pkg.identifier}`}
+                              name="package"
+                              value={pkg.identifier}
+                              checked={selectedPackage?.identifier === pkg.identifier}
+                              onChange={() => setSelectedPackage(pkg)}
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`package-${pkg.identifier}`} className="text-sm text-muted-foreground">
+                              Select this plan
+                            </label>
+                          </div>
+                          {pkg.storeProduct?.introductory_price && (
+                            <p className="text-sm text-green-600">
+                              Introductory price: {pkg.storeProduct.introductory_price_string}
+                            </p>
+                          )}
+                          {pkg.storeProduct?.discounts && pkg.storeProduct.discounts.length > 0 && (
+                            <p className="text-sm text-blue-600">
+                              Discount available
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">What's included:</h3>
+            <div className="grid gap-4">
+              {features.map((feature, index) => {
+                const IconComponent = feature.icon;
+                return (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <IconComponent className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{feature.title}</h4>
+                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      <div className="text-center text-sm text-muted-foreground mt-8">
+          <Separator />
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span>Free features included</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Cancel anytime</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Secure payment processing</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+          </div>
+
+          {offerings.length > 0 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <Button
+                  onClick={handleUpgrade}
+                  className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
+                  disabled={!selectedPackage}
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  {selectedPackage ? 'Upgrade to Selected Plan' : 'Please select a plan first'}
+                </Button>
+              </div>
+              {selectedPackage && (
+                <div className="text-center text-sm text-muted-foreground">
+                  You have selected: {selectedPackage.storeProduct?.title || selectedPackage.identifier}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="text-center text-sm text-muted-foreground">
         <p>
           Secure payment processing by RevenueCat. Your payment information is encrypted and secure.
         </p>
