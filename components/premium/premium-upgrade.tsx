@@ -8,12 +8,12 @@ import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
-import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser, getProducts } from '@/lib/revenuecat';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
 
 // Helper function to get formatted price
 const getFormattedPrice = (product: any) => {
   if (!product) return 'N/A';
-  const price = product.price_string || product.price || product.displayPrice;
+  const price = product.price || product.price_string || product.displayPrice;
   if (!price) return 'N/A';
   return `$${price}`;
 };
@@ -21,7 +21,7 @@ const getFormattedPrice = (product: any) => {
 // Helper function to get period
 const getPeriod = (product: any) => {
   if (!product) return 'Monthly';
-  const period = product.subscriptionPeriod || product.subscription_period || product.period;
+  const period = product.subscriptionPeriod || product.subscription_period || product.period || product.duration;
   if (!period) return 'Monthly';
   
   // Common period formats
@@ -39,14 +39,16 @@ const getPeriod = (product: any) => {
 
 // Helper function to get title
 const getPackageTitle = (pkg: any) => {
-  if (!pkg?.storeProduct) return pkg.identifier;
-  return pkg.storeProduct.title || pkg.storeProduct.name || pkg.storeProduct.displayName || pkg.identifier;
+  if (!pkg) return 'Unknown Package';
+  const product = pkg.storeProduct || pkg;
+  return product.title || product.name || product.displayName || product.identifier;
 };
 
 // Helper function to get description
 const getPackageDescription = (pkg: any) => {
-  if (!pkg?.storeProduct) return '';
-  return pkg.storeProduct.description || pkg.storeProduct.summary || pkg.storeProduct.localizedDescription || `Get ${getPeriod(pkg.storeProduct)} access`;
+  if (!pkg) return '';
+  const product = pkg.storeProduct || pkg;
+  return product.description || product.summary || product.localizedDescription || `Get ${getPeriod(product)} access`;
 };
 
 export function PremiumUpgrade() {
@@ -64,30 +66,12 @@ export function PremiumUpgrade() {
         toast.error('Failed to initialize premium features');
       });
 
-      // Fetch offerings and store products
-      Promise.all([
-        getOfferings(),
-        getProducts()
-      ]).then(([fetchedOfferings, storeProducts]) => {
-        // Map store products to offerings and packages
-        const mappedOfferings = fetchedOfferings.map(offering => {
-          const mappedPackages = offering.availablePackages.map(pkg => {
-            const storeProduct = storeProducts.find(product => product.identifier === pkg.identifier);
-            return {
-              ...pkg,
-              storeProduct: storeProduct || pkg.storeProduct
-            };
-          });
-          return {
-            ...offering,
-            availablePackages: mappedPackages
-          };
-        });
-
-        setOfferings(mappedOfferings);
+      // Fetch offerings
+      getOfferings().then(fetchedOfferings => {
+        setOfferings(fetchedOfferings);
         setLoading(false);
       }).catch(error => {
-        console.error('Failed to fetch offerings or products:', error);
+        console.error('Failed to fetch offerings:', error);
         toast.error('Failed to load premium plans');
         setLoading(false);
       });
