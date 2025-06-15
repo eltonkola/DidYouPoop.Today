@@ -19,9 +19,14 @@ const isValidKey = (key: string) => {
 };
 
 // Only create client if both URL and key are valid
-export const supabase = (isValidUrl(supabaseUrl) && isValidKey(supabaseAnonKey)) 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+// Initialize Supabase client
+if (isValidUrl(supabaseUrl) && isValidKey(supabaseAnonKey)) {
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+export const supabase = supabaseClient;
 
 // Helper to check if Supabase is configured
 export const isSupabaseConfigured = () => {

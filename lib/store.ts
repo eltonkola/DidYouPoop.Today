@@ -4,15 +4,18 @@ import { cloudSync } from './cloud-sync';
 
 export interface PoopEntry {
   id: string;
-  user_id: string; // auth.users id
+  user_id: string;
   date: string; // YYYY-MM-DD format
-  didPoop: boolean;
+  did_poop: boolean;
   duration: number; // in seconds
   fiber: number; // in grams
   mood: 'happy' | 'neutral' | 'sad';
   notes: string;
   score: number; // 0-100
-  createdAt: string; // ISO string
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+  didPoop: boolean; // Alias for did_poop
+  createdAt: string; // Alias for created_at
 }
 
 export interface Achievement {

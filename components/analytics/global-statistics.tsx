@@ -6,9 +6,11 @@ import { useState, useEffect } from 'react';
 import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
 import { format } from 'date-fns';
-import { supabase } from '@/lib/supabase';
+import { supabase, Database } from '@/lib/supabase';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { PoopEntry } from '@/lib/store';
+
+type PoopEntryRow = Database['public']['Tables']['poop_entries']['Row'];
 
 interface GlobalStats {
   totalUsers: number;
@@ -55,15 +57,15 @@ const calculateGlobalStats = (entries: PoopEntry[], userCount: number): GlobalSt
   // Calculate time of day distribution
   const timeOfDay = {
     morning: entries.filter(e => {
-      const time = new Date(e.createdAt).getHours();
+      const time = new Date(e.created_at).getHours();
       return time >= 5 && time < 12;
     }).length,
     afternoon: entries.filter(e => {
-      const time = new Date(e.createdAt).getHours();
+      const time = new Date(e.created_at).getHours();
       return time >= 12 && time < 18;
     }).length,
     evening: entries.filter(e => {
-      const time = new Date(e.createdAt).getHours();
+      const time = new Date(e.created_at).getHours();
       return time >= 18 || time < 5;
     }).length,
   };
@@ -88,11 +90,11 @@ const calculateGlobalStats = (entries: PoopEntry[], userCount: number): GlobalSt
       const streak = userStreaks.get(userId)!;
       const prevEntry = entries.find(e => 
         e.user_id === userId && 
-        new Date(e.createdAt).getTime() < new Date(entry.createdAt).getTime()
+        new Date(e.created_at).getTime() < new Date(entry.created_at).getTime()
       );
 
       if (prevEntry && 
-          new Date(entry.createdAt).getTime() - new Date(prevEntry.createdAt).getTime() <= 86400000) {
+          new Date(entry.created_at).getTime() - new Date(prevEntry.created_at).getTime() <= 86400000) {
         streak.current++;
         streak.longest = Math.max(streak.longest, streak.current);
       } else {
@@ -155,8 +157,14 @@ export function GlobalStatistics() {
 
     const fetchGlobalStats = async () => {
       try {
+        // Check if Supabase is configured
+        if (!isSupabaseConfigured()) {
+          throw new Error('Supabase is not properly configured. Please check your environment variables.');
+        }
+
+        // Ensure we have a valid client
         if (!supabase) {
-          throw new Error('Supabase client is not initialized');
+          throw new Error('Failed to initialize Supabase client. Please try refreshing the page.');
         }
 
         // Fetch entries while maintaining privacy
@@ -165,21 +173,28 @@ export function GlobalStatistics() {
           .select('*')
           .order('created_at', { ascending: true });
 
-        if (entriesError) {
-          throw new Error('Failed to fetch entries: ' + entriesError.message);
+        if (!entries) {
+          throw new Error('Failed to fetch entries: No data returned');
         }
 
-        if (!entries || entries.length === 0) {
+        // Type assertion to convert Supabase row type to PoopEntry
+        const typedEntries = entries as PoopEntryRow[];
+
+        if (entriesError) {
+          throw new Error('Failed to fetch entries: ' + (entriesError as any).message || 'Unknown error occurred');
+        }
+
+        if (!typedEntries || typedEntries.length === 0) {
           throw new Error('No poop entries recorded yet. Start tracking your poops to see global statistics!');
         }
 
         // Calculate user count by getting unique user_ids from entries
-        const userCount = new Set(entries.map(entry => entry.user_id)).size;
+        const userCount = new Set(typedEntries.map(entry => entry.user_id)).size;
         if (!userCount) {
           throw new Error('No users registered in the system yet. Be the first to add your data!');
         }
 
-        const stats = calculateGlobalStats(entries, userCount);
+        const stats = calculateGlobalStats(typedEntries, userCount);
         setStats(stats);
       } catch (err) {
         console.error('Error fetching global stats:', err);
