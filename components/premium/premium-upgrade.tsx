@@ -190,7 +190,11 @@ export default function PremiumUpgrade() {
         <div className="flex justify-center items-center min-h-[200px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : offerings && Object.keys(offerings.all).length > 0 ? (
+      ) : !offerings || Object.keys(offerings.all).length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No premium plans available at this time.</p>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.values(offerings.all).map((offering) => (
             <Card key={offering.identifier}>
@@ -202,18 +206,18 @@ export default function PremiumUpgrade() {
                   <div key={pkg.identifier} className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xl font-semibold">
-                        {getPackageTitle(pkg)}
+                        {pkg.storeProduct?.title || pkg.identifier}
                       </h3>
                       <Badge variant="premium">
-                        {getPeriod(pkg)}
+                        {pkg.storeProduct?.subscriptionPeriod?.includes('P1M') ? 'Monthly' : 'Yearly'}
                       </Badge>
                     </div>
                     <p className="text-muted-foreground">
-                      {getPackageDescription(pkg)}
+                      {pkg.storeProduct?.description || pkg.identifier}
                     </p>
                     <div className="flex items-center justify-between">
                       <div className="text-2xl font-bold">
-                        {getFormattedPrice(pkg)}
+                        {pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A'}
                       </div>
                       <Button
                         onClick={() => setSelectedPackage({
@@ -237,13 +241,9 @@ export default function PremiumUpgrade() {
             </Card>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No premium plans available at this time.</p>
-        </div>
       )}
 
-      {selectedPackage && (
+      {selectedPackage && !isInitializing && (
         <div className="mt-8">
           <Separator />
           <div className="mt-4">
