@@ -9,24 +9,38 @@ import { AuthGuard } from '@/components/auth/auth-guard';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DidYouPoop.online - Track Your Daily Movements',
+  title: 'DidYouPoop.today - Track Your Daily Movements',
   description: 'The fun and functional way to track your gut health with poop scoring, streaks, and achievements!',
   keywords: 'poop tracker, gut health, bowel movement, digestive health, fiber intake',
   authors: [{ name: 'DidYouPoop Team' }],
-  creator: 'DidYouPoop.online',
-  publisher: 'DidYouPoop.online',
+  creator: 'DidYouPoop.today',
+  publisher: 'DidYouPoop.today',
   robots: 'index, follow',
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://didyoupoop.online',
-    title: 'DidYouPoop.online - Track Your Daily Movements',
+    url: 'https://didyoupoop.today',
+    title: 'DidYouPoop.today - Track Your Daily Movements',
     description: 'The fun and functional way to track your gut health!',
-    siteName: 'DidYouPoop.online',
+    siteName: 'DidYouPoop.today',
   },
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg'
+  },
+  themeColor: [
+    {
+      media: '(prefers-color-scheme: light)',
+      color: '#ff9800'
+    },
+    {
+      media: '(prefers-color-scheme: dark)',
+      color: '#f4511e'
+    }
+  ],
   twitter: {
     card: 'summary_large_image',
-    title: 'DidYouPoop.online - Track Your Daily Movements',
+    title: 'DidYouPoop.today - Track Your Daily Movements',
     description: 'The fun and functional way to track your gut health!',
   },
 };

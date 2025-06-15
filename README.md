@@ -1,4 +1,4 @@
-# DidYouPoop.online
+# DidYouPoop.today
 
 The fun and functional way to track your gut health with poop scoring, streaks, and achievements!
 
@@ -79,4 +79,4 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For support, email support@didyoupoop.online or join our Discord community.
+For support, email support@didyoupoop.today or join our Discord community.
