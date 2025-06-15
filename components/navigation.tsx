@@ -74,7 +74,7 @@ export function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             <span className="text-2xl">💩</span>
-            <span className="hidden sm:inline">DidYouPoop.online</span>
+            <span className="hidden sm:inline">DidYouPoop.Today</span>
             <span className="sm:hidden">DYP</span>
           </Link>
 
