@@ -209,9 +209,27 @@ export function PremiumUpgrade() {
         setLoading(false);
         console.log('Fetched offerings:', fetchedOfferings);
 
-        console.log('monthly:', fetchedOfferings[0]);
-        console.log('yearly:', fetchedOfferings[1]);
+        console.log('default:', fetchedOfferings[0]);
 
+        var  offering = fetchedOfferings[0];
+
+        var monthlyPrice = offering.monthly?.webBillingProduct.currentPrice.formattedPrice;
+        var annualPrice = offering.annual?.webBillingProduct.currentPrice.formattedPrice;
+
+        var monthlyName = offering.monthly?.webBillingProduct.displayName;
+        var annualName = offering.annual?.webBillingProduct.displayName;
+       
+        var monthlydescription = offering.monthly?.webBillingProduct.description;
+        var annualdescription = offering.annual?.webBillingProduct.description;
+          
+        
+
+        console.log('monthlyPrice:', monthlyPrice);
+        console.log('annualPrice:', annualPrice);
+        console.log('monthlyName:', monthlyName);
+        console.log('annualName:', annualName);
+        console.log('monthlydescription:', monthlydescription);
+        console.log('annualdescription:', annualdescription);
 
 
       }).catch(error => {
