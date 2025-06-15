@@ -15,6 +15,7 @@ export function PremiumUpgrade() {
   const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
 
   useEffect(() => {
     // Initialize RevenueCat SDK and fetch offerings
@@ -38,10 +39,8 @@ export function PremiumUpgrade() {
 
   const handleUpgrade = async () => {
     try {
-      // Get offerings
-      const offerings = await getOfferings();
-      if (!offerings.length) {
-        toast.error('No premium plans available');
+      if (!selectedPackage) {
+        toast.error('Please select a package first');
         return;
       }
 
@@ -52,22 +51,8 @@ export function PremiumUpgrade() {
         return;
       }
 
-      // Show the first offering (you might want to implement a selection UI)
-      const offering = offerings[0];
-      if (!offering) {
-        toast.error('No premium plan found');
-        return;
-      }
-
-      // Get the first package from the offering
-      const packageToPurchase = offering.availablePackages[0];
-      if (!packageToPurchase) {
-        toast.error('No package found in offering');
-        return;
-      }
-
-      // Purchase the package
-      await purchasePackage(packageToPurchase);
+      // Purchase the selected package
+      await purchasePackage(selectedPackage);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
@@ -145,24 +130,43 @@ export function PremiumUpgrade() {
                       <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-medium">{pkg.identifier}</h4>
-                            <p className="text-sm text-muted-foreground">{pkg.storeProduct?.title}</p>
+                            <h4 className="font-medium">{pkg.storeProduct?.title || pkg.identifier}</h4>
+                            <p className="text-sm text-muted-foreground">{pkg.storeProduct?.description || pkg.identifier}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {pkg.storeProduct?.price}
+                              {pkg.storeProduct?.price_string || pkg.storeProduct?.price || 'N/A'}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {pkg.storeProduct?.period}
+                              {pkg.storeProduct?.period || pkg.storeProduct?.subscription_period || 'Monthly'}
                             </p>
                           </div>
                         </div>
                         <div className="mt-4 space-y-2">
-                          {pkg.storeProduct?.description?.split('\n').map((line, lineIndex) => (
-                            <p key={lineIndex} className="text-sm text-muted-foreground">
-                              {line}
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id={`package-${pkg.identifier}`}
+                              name="package"
+                              value={pkg.identifier}
+                              checked={selectedPackage?.identifier === pkg.identifier}
+                              onChange={() => setSelectedPackage(pkg)}
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`package-${pkg.identifier}`} className="text-sm text-muted-foreground">
+                              Select this plan
+                            </label>
+                          </div>
+                          {pkg.storeProduct?.introductory_price && (
+                            <p className="text-sm text-green-600">
+                              Introductory price: {pkg.storeProduct.introductory_price_string}
                             </p>
-                          ))}
+                          )}
+                          {pkg.storeProduct?.discounts && pkg.storeProduct.discounts.length > 0 && (
+                            <p className="text-sm text-blue-600">
+                              Discount available
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -209,13 +213,23 @@ export function PremiumUpgrade() {
           </div>
 
           {offerings.length > 0 && (
-            <Button
-              onClick={handleUpgrade}
-              className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              Upgrade to Premium
-            </Button>
+            <div className="space-y-4">
+              <div className="text-center">
+                <Button
+                  onClick={handleUpgrade}
+                  className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
+                  disabled={!selectedPackage}
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  {selectedPackage ? 'Upgrade to Selected Plan' : 'Please select a plan first'}
+                </Button>
+              </div>
+              {selectedPackage && (
+                <div className="text-center text-sm text-muted-foreground">
+                  You have selected: {selectedPackage.storeProduct?.title || selectedPackage.identifier}
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
