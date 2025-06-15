@@ -47,138 +47,91 @@ const COMMON_PRODUCTS = {
 };
 
 // Helper function to get period
-const getPeriod = (product: StoreProduct) => {
+const getPeriod = (product: StoreProduct | undefined): string => {
   if (!product) {
-    console.log('Product is null/undefined in getPeriod');
     return 'Monthly';
   }
   
-  console.log('Period properties:', {
-    subscriptionPeriod: product.subscriptionPeriod,
-    subscription_period: product.subscription_period,
-    period: product.period,
-    duration: product.duration
-  });
-  
-  const period = product.subscriptionPeriod || product.subscription_period || product.period || product.duration;
+  const period = product.subscription_period || product.period;
   if (!period) {
-    console.log('No period found in any format');
     return 'Monthly';
   }
   
-  console.log('Raw period:', period);
+  // Convert period string to human-readable format
+  if (period.includes('P1M')) return 'Monthly';
+  if (period.includes('P1Y')) return 'Yearly';
   
-  // Common period formats
-  const periodMap: Record<string, string> = {
-    'P1M': 'Monthly',
-    'P1Y': 'Yearly',
-    'P1W': 'Weekly',
-    'P7D': '7 Days',
-    'P30D': '30 Days',
-    'P365D': 'Yearly'
-  };
-  
-  const formattedPeriod = periodMap[period] || period;
-  console.log('Formatted period:', formattedPeriod);
-  return formattedPeriod;
+  return period;
 };
 
 // Helper function to get formatted price
-const getFormattedPrice = (product: StoreProduct) => {
+const getFormattedPrice = (product: StoreProduct | undefined): string => {
   if (!product) {
-    console.log('Product is null/undefined');
     return 'N/A';
   }
   
-  // Log all available price properties
-  console.log('Product price properties:', {
-    price: product.price,
-    price_string: product.price_string,
-    displayPrice: product.displayPrice,
-    type: typeof product.price
-  });
-  
-  // Try different price formats
   let price = product.price || product.price_string || product.displayPrice;
   if (!price) {
-    console.log('No price found in any format');
     return 'N/A';
   }
   
-  console.log('Raw price value:', price, 'type:', typeof price);
-  
-  // Convert price to number if it's a string
   if (typeof price === 'string') {
-    console.log('Converting string price to number:', price);
     price = parseFloat(price);
   }
   
   if (isNaN(price)) {
-    console.log('Price is not a number:', price);
     return 'N/A';
   }
   
-  // Format price based on period
   const period = getPeriod(product);
-  console.log('Period detected:', period);
   
   if (period === 'Monthly') {
-    console.log('Monthly price:', price);
     return `$${price.toFixed(2)}/month`;
   } else if (period === 'Yearly') {
-    // For yearly plans, show both yearly and monthly equivalent
     const yearlyPrice = price;
     const monthlyPrice = yearlyPrice / 12;
-    console.log('Yearly price:', yearlyPrice, 'Monthly price:', monthlyPrice);
     return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
   }
   
-  console.log('Default price:', price);
   return `$${price.toFixed(2)}`;
 };
 
 // Helper function to get title
-// Helper function to get title
-const getPackageTitle = (pkg: ExtendedPackage) => {
+const getPackageTitle = (pkg: ExtendedPackage): string => {
   if (!pkg) return 'Unknown Package';
   
-  // Get product info from storeProduct
   const product = pkg.storeProduct;
+  if (!product) return pkg.identifier || 'Unknown Package';
   
-  // Try to get title from product data first
-  const title = product?.title || product?.name || product?.displayName;
-  if (title) return title;
+  const productTitle = product.title || product.name || product.displayName;
+  if (productTitle) return productTitle;
   
-  // If no title found, create a human-readable title based on period
   const period = getPeriod(product);
   if (period === 'Monthly') {
     return 'Monthly Premium';
   } else if (period === 'Yearly') {
     return 'Annual Premium (Save 20%)';
   }
-  return pkg.identifier;
+  return pkg.identifier || 'Unknown Package';
 };
 
 // Helper function to get description
-// Helper function to get description
-const getPackageDescription = (pkg: ExtendedPackage) => {
+const getPackageDescription = (pkg: ExtendedPackage): string => {
   if (!pkg) return '';
   
-  // Get product info from storeProduct
   const product = pkg.storeProduct;
+  if (!product) return '';
   
-  // Try to get description from product data first
-  const description = product?.description || product?.summary || product?.localizedDescription;
-  if (description) return description;
+  const productDescription = product.description || product.summary || product.localizedDescription;
+  if (productDescription) return productDescription;
   
-  // If no description found, create a default based on period
   const period = getPeriod(product);
   if (period === 'Monthly') {
-    return 'Monthly access to all premium features';
+    return 'Monthly subscription with all premium features';
   } else if (period === 'Yearly') {
-    return 'Yearly access to all premium features (save 20%)';
+    return 'Annual subscription with all premium features (20% off)';
   }
-  return `Get ${period} access to premium features`;
+  return 'Premium subscription with all features';
 };
 
 export function PremiumUpgrade() {
