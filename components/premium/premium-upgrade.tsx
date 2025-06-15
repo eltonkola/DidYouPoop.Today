@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
 import { Package } from '@revenuecat/purchases-js';
+import { ReactNode } from 'react';
 
 // Extended Package interface with our additional properties
 interface ExtendedPackage extends Package {
@@ -47,9 +48,25 @@ const COMMON_PRODUCTS = {
 
 // Helper function to get period
 const getPeriod = (product: StoreProduct) => {
-  if (!product) return 'Monthly';
+  if (!product) {
+    console.log('Product is null/undefined in getPeriod');
+    return 'Monthly';
+  }
+  
+  console.log('Period properties:', {
+    subscriptionPeriod: product.subscriptionPeriod,
+    subscription_period: product.subscription_period,
+    period: product.period,
+    duration: product.duration
+  });
+  
   const period = product.subscriptionPeriod || product.subscription_period || product.period || product.duration;
-  if (!period) return 'Monthly';
+  if (!period) {
+    console.log('No period found in any format');
+    return 'Monthly';
+  }
+  
+  console.log('Raw period:', period);
   
   // Common period formats
   const periodMap: Record<string, string> = {
@@ -61,31 +78,62 @@ const getPeriod = (product: StoreProduct) => {
     'P365D': 'Yearly'
   };
   
-  return periodMap[period] || period;
+  const formattedPeriod = periodMap[period] || period;
+  console.log('Formatted period:', formattedPeriod);
+  return formattedPeriod;
 };
 
 // Helper function to get formatted price
 const getFormattedPrice = (product: StoreProduct) => {
-  if (!product) return 'N/A';
+  if (!product) {
+    console.log('Product is null/undefined');
+    return 'N/A';
+  }
+  
+  // Log all available price properties
+  console.log('Product price properties:', {
+    price: product.price,
+    price_string: product.price_string,
+    displayPrice: product.displayPrice,
+    type: typeof product.price
+  });
   
   // Try different price formats
   let price = product.price || product.price_string || product.displayPrice;
-  if (!price) return 'N/A';
+  if (!price) {
+    console.log('No price found in any format');
+    return 'N/A';
+  }
+  
+  console.log('Raw price value:', price, 'type:', typeof price);
   
   // Convert price to number if it's a string
-  price = typeof price === 'string' ? parseFloat(price) : price;
-  if (isNaN(price)) return 'N/A';
+  if (typeof price === 'string') {
+    console.log('Converting string price to number:', price);
+    price = parseFloat(price);
+  }
+  
+  if (isNaN(price)) {
+    console.log('Price is not a number:', price);
+    return 'N/A';
+  }
   
   // Format price based on period
   const period = getPeriod(product);
+  console.log('Period detected:', period);
+  
   if (period === 'Monthly') {
+    console.log('Monthly price:', price);
     return `$${price.toFixed(2)}/month`;
   } else if (period === 'Yearly') {
     // For yearly plans, show both yearly and monthly equivalent
     const yearlyPrice = price;
     const monthlyPrice = yearlyPrice / 12;
+    console.log('Yearly price:', yearlyPrice, 'Monthly price:', monthlyPrice);
     return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
   }
+  
+  console.log('Default price:', price);
   return `$${price.toFixed(2)}`;
 };
 
@@ -258,10 +306,16 @@ export function PremiumUpgrade() {
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {getFormattedPrice(pkg.storeProduct)}
+                              {(() => {
+                                console.log('Rendering price for package:', pkg.identifier, pkg.storeProduct);
+                                return getFormattedPrice(pkg.storeProduct) as ReactNode;
+                              })()}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {getPeriod(pkg.storeProduct)}
+                              {(() => {
+                                console.log('Rendering period for package:', pkg.identifier, pkg.storeProduct);
+                                return getPeriod(pkg.storeProduct) as ReactNode;
+                              })()}
                             </p>
                           </div>
                         </div>
