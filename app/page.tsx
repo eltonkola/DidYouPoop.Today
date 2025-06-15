@@ -16,6 +16,7 @@ import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
 import { getTodaysEntry } from '@/lib/utils';
 import { format } from 'date-fns';
+import { AIHealthSummary } from '@/components/ai-health-summary';
 
 export default function Home() {
   const { entries, streak, achievements } = usePoopStore();
@@ -92,6 +93,11 @@ export default function Home() {
           </Badge>
         </div>
       </motion.div>
+
+      <Separator />
+
+      {/* AI Health Summary for Premium Users */}
+      {isPremium && <AIHealthSummary isPremium={isPremium} />}
 
       <Separator />
 
