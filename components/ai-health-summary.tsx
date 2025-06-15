@@ -7,6 +7,9 @@ import { useAuthStore } from '@/lib/auth-store';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DOMPurify from 'isomorphic-dompurify';
+import { isRevenueCatConfigured } from '@/lib/revenuecat';
+import { getUserSubscription } from '@/lib/subscription';
+import { UserSubscription } from '@/lib/subscription';
 
 // Configure marked to handle our formatting
 // We're using ReactMarkdown now, no need for marked configuration
@@ -16,10 +19,37 @@ interface AIHealthSummaryProps {
 }
 
 export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
-  const [healthSummary, setHealthSummary] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const { entries } = usePoopStore();
+  const { user } = useAuthStore();
+  const [healthSummary, setHealthSummary] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPremiumChecked, setIsPremiumChecked] = useState(false);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      if (!isRevenueCatConfigured()) {
+        setIsPremiumChecked(true);
+        setIsPremiumUser(false);
+        return;
+      }
+
+      try {
+        const subscription = await getUserSubscription();
+        setIsPremiumUser(!!subscription?.isPremium);
+      } catch (error) {
+        console.error('Error checking premium status:', error);
+        setIsPremiumUser(false);
+      } finally {
+        setIsPremiumChecked(true);
+      }
+    };
+
+    if (isPremium) {
+      checkPremiumStatus();
+    }
+  }, [isPremium]);
 
   const analyzePoopData = async () => {
     setIsLoading(true);
@@ -105,58 +135,62 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
     }
   };
 
-  if (!isPremium) {
-    return null;
-  }
-
   return (
     <Card className="p-6 space-y-4">
       <CardContent>
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold">AI Health Summary</h3>
-            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-          </div>
-          
-          {!isExpanded && (
-            <Button onClick={analyzePoopData} disabled={isLoading}>
-              {isLoading ? 'Analyzing...' : 'Get My Health Summary'}
-            </Button>
-          )}
-
-          {isExpanded && (
-            <div className="prose prose-sm max-w-none">
-              {healthSummary ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-2xl font-bold mb-4">{children}</h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-xl font-semibold mb-3">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-lg font-semibold mb-2">{children}</h3>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
-                    ),
-                    li: ({ children }) => (
-                      <li className="list-item">{children}</li>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-2">{children}</p>
-                    )
-                  }}
+          {isPremiumUser ? (
+            <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Health Summary</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
                 >
-                  {healthSummary}
-                </ReactMarkdown>
-              ) : (
-                <p className="text-muted-foreground">
-                  Click the button above to get your personalized health summary
-                </p>
+                  {isExpanded ? 'Collapse' : 'Expand'}
+                </Button>
+              </div>
+
+              {isExpanded && (
+                <div className="prose prose-sm max-w-none">
+                  {healthSummary ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="text-2xl font-bold mb-4">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-xl font-semibold mb-3">{children}</h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-lg font-semibold mb-2">{children}</h3>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
+                        ),
+                        li: ({ children }) => (
+                          <li className="list-item">{children}</li>
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-2">{children}</p>
+                        )
+                      }}
+                    >
+                      {healthSummary}
+                    </ReactMarkdown>
+                  ) : (
+                    <Button onClick={analyzePoopData} disabled={isLoading}>
+                      {isLoading ? 'Analyzing...' : 'Get My Health Summary'}
+                    </Button>
+                  )}
+                </div>
               )}
+            </>
+          ) : (
+            <div className="text-muted-foreground">
+              This feature is available to premium users only. Upgrade to premium to access advanced health analysis.
             </div>
           )}
         </div>
