@@ -16,6 +16,7 @@ export interface PoopEntry {
   updated_at: string; // ISO string
   didPoop: boolean; // Alias for did_poop
   createdAt: string; // Alias for created_at
+  [key: string]: any; // Allow additional properties from Supabase
 }
 
 export interface Achievement {

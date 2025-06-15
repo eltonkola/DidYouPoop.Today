@@ -149,49 +149,59 @@ export function GlobalStatistics() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setError('Supabase is not configured');
-      setLoading(false);
-      return;
-    }
-
     const fetchGlobalStats = async () => {
       try {
-        // Check if Supabase is configured
-        if (!isSupabaseConfigured()) {
-          throw new Error('Supabase is not properly configured. Please check your environment variables.');
+        if (!user) {
+          setError('Please sign in to view global statistics');
+          setLoading(false);
+          return;
         }
 
-        // Ensure we have a valid client
         if (!supabase) {
-          throw new Error('Failed to initialize Supabase client. Please try refreshing the page.');
+          setError('Failed to initialize Supabase client. Please try refreshing the page.');
+          setLoading(false);
+          return;
         }
 
-        // Fetch entries while maintaining privacy
+        // Fetch all entries while maintaining privacy
         const { data: entries, error: entriesError } = await supabase
           .from('poop_entries')
           .select('*')
           .order('created_at', { ascending: true });
 
-        if (!entries) {
-          throw new Error('Failed to fetch entries: No data returned');
+        if (entriesError) {
+          setError('Failed to fetch entries: ' + (entriesError as any).message || 'Unknown error occurred');
+          setLoading(false);
+          return;
         }
 
-        // Type assertion to convert Supabase row type to PoopEntry
-        const typedEntries = entries as PoopEntryRow[];
+        if (!entries || entries.length === 0) {
+          setError('No poop entries recorded yet. Start tracking your poops to see global statistics!');
+          setLoading(false);
+          return;
+        }
+
+        // Type assertion to convert Supabase response to PoopEntry array
+        const typedEntries = entries as PoopEntry[];
 
         if (entriesError) {
-          throw new Error('Failed to fetch entries: ' + (entriesError as any).message || 'Unknown error occurred');
+          setError('Failed to fetch entries: ' + entriesError.message);
+          setLoading(false);
+          return;
         }
 
-        if (!typedEntries || typedEntries.length === 0) {
-          throw new Error('No poop entries recorded yet. Start tracking your poops to see global statistics!');
+        if (!entries || entries.length === 0) {
+          setError('No poop entries recorded yet. Start tracking your poops to see global statistics!');
+          setLoading(false);
+          return;
         }
 
         // Calculate user count by getting unique user_ids from entries
-        const userCount = new Set(typedEntries.map(entry => entry.user_id)).size;
+        const userCount = new Set(entries.map(entry => entry.user_id)).size;
         if (!userCount) {
-          throw new Error('No users registered in the system yet. Be the first to add your data!');
+          setError('No users registered in the system yet. Be the first to add your data!');
+          setLoading(false);
+          return;
         }
 
         const stats = calculateGlobalStats(typedEntries, userCount);
@@ -205,7 +215,7 @@ export function GlobalStatistics() {
     };
 
     fetchGlobalStats();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
