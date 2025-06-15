@@ -16,7 +16,7 @@ export function PremiumUpgrade() {
   useEffect(() => {
     // Use the RevenueCat Pages link
     // Replace this with your actual RevenueCat Pages link from your dashboard
-    const REVENUECAT_PAGES_LINK = 'YOUR_REVENUECAT_PAGES_LINK_HERE';
+    const REVENUECAT_PAGES_LINK = 'https://pay.rev.cat/plcfzthiuxggwmvv/';
     
     // If you have an authenticated user, append their App User ID
     const link = user ? 
