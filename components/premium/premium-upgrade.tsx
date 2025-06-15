@@ -15,8 +15,7 @@ import { ReactNode } from 'react';
 
 // Type definitions
 interface ExtendedPackage {
-  package: Package;
-  storeProduct: Product;
+  package: any;
   identifier: string;
   title: string;
   description: string;
@@ -190,11 +189,7 @@ export default function PremiumUpgrade() {
         <div className="flex justify-center items-center min-h-[200px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : !offerings || !offerings.all ? (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No premium plans available at this time.</p>
-        </div>
-      ) : (
+      ) : offerings && offerings.all ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.values(offerings.all).map((offering) => (
             <Card key={offering.identifier}>
@@ -207,28 +202,27 @@ export default function PremiumUpgrade() {
                     <div key={pkg.identifier} className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xl font-semibold">
-                          {pkg.storeProduct?.title || pkg.identifier}
+                          {pkg.webBillingProduct?.title || pkg.identifier}
                         </h3>
                         <Badge variant="default">
-                          {pkg.storeProduct?.subscriptionPeriod?.includes('P1M') ? 'Monthly' : 'Yearly'}
+                          {pkg.webBillingProduct?.normalPeriodDuration?.includes('P1M') ? 'Monthly' : 'Yearly'}
                         </Badge>
                       </div>
                       <p className="text-muted-foreground">
-                        {pkg.storeProduct?.description || pkg.identifier}
+                        {pkg.webBillingProduct?.description || pkg.identifier}
                       </p>
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold">
-                          {pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A'}
+                          {pkg.webBillingProduct?.currentPrice?.formattedPrice || 'N/A'}
                         </div>
                         <Button
                           onClick={() => setSelectedPackage({
                             package: pkg,
-                            storeProduct: pkg.storeProduct,
                             identifier: pkg.identifier,
-                            title: pkg.storeProduct?.title || pkg.identifier,
-                            description: pkg.storeProduct?.description || pkg.identifier,
-                            price: pkg.storeProduct?.currentPrice?.formattedPrice || 'N/A',
-                            period: pkg.storeProduct?.subscriptionPeriod || 'Monthly'
+                            title: pkg.webBillingProduct?.title || pkg.identifier,
+                            description: pkg.webBillingProduct?.description || pkg.identifier,
+                            price: pkg.webBillingProduct?.currentPrice?.formattedPrice || 'N/A',
+                            period: pkg.webBillingProduct?.normalPeriodDuration || 'Monthly'
                           })}
                           variant={selectedPackage?.package === pkg ? "default" : "outline"}
                           className="w-full"
@@ -246,6 +240,10 @@ export default function PremiumUpgrade() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No premium plans available at this time.</p>
         </div>
       )}
 
