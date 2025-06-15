@@ -53,7 +53,7 @@ const COMMON_PRODUCTS = {
 };
 
 // Helper function to get period
-const getPeriod = (product: StoreProduct | undefined): string => {
+const getPeriod = (product: any): string => {
   if (!product) {
     console.log('Product is undefined');
     return 'Monthly';
@@ -62,6 +62,7 @@ const getPeriod = (product: StoreProduct | undefined): string => {
   // Log all available period properties
   console.log('Product period properties:', {
     id: product.identifier,
+    storeProduct: product.storeProduct,
     subscription_period: product.subscription_period,
     period: product.period,
     subscriptionPeriod: product.subscriptionPeriod,
@@ -69,8 +70,22 @@ const getPeriod = (product: StoreProduct | undefined): string => {
     subscriptionPeriods: product.subscriptionPeriods
   });
   
-  // Try different period formats
-  // First check the subscriptionPeriods array if it exists
+  // First check if we have a storeProduct with period info
+  if (product.storeProduct) {
+    console.log('Store product found:', {
+      identifier: product.storeProduct.identifier,
+      period: product.storeProduct.period,
+      subscriptionPeriod: product.storeProduct.subscriptionPeriod,
+      subscription_period: product.storeProduct.subscription_period,
+      duration: product.storeProduct.duration
+    });
+    
+    if (product.storeProduct.period) {
+      return product.storeProduct.period;
+    }
+  }
+  
+  // Then check the subscriptionPeriods array if it exists
   if (product.subscriptionPeriods?.length) {
     const period = product.subscriptionPeriods[0];
     if (period) {
@@ -205,6 +220,14 @@ export function PremiumUpgrade() {
 
       // Fetch offerings
       getOfferings().then(fetchedOfferings => {
+        console.log('Raw fetched offerings:', JSON.stringify(fetchedOfferings, null, 2));
+        
+        // Log each offering and its packages
+        fetchedOfferings.forEach(offering => {
+          console.log('Offering:', offering.identifier);
+          console.log('Packages:', JSON.stringify(offering.availablePackages, null, 2));
+        });
+
         setOfferings(fetchedOfferings);
         setLoading(false);
       }).catch(error => {
