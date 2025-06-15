@@ -30,6 +30,7 @@ const navigation = [
   { name: 'Log Poop', href: '/log', icon: Plus },
   { name: 'History', href: '/history', icon: Calendar },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
+  { name: 'Extra', href: '/extra', icon: Crown },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
