@@ -190,7 +190,9 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
             </>
           ) : (
             <div className="text-muted-foreground">
-              This feature is available to premium users only. Upgrade to premium to access advanced health analysis.
+              AI Poop Data Analysis is available for premium users only. 
+              <br />
+              <span className="text-sm">Get premium to unlock your poop's secrets!</span>
             </div>
           )}
         </div>
