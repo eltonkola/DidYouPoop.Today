@@ -26,6 +26,41 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
   const analyzePoopData = async () => {
     setIsLoading(true);
     try {
+      // Format the entries data in a more readable way
+      const formattedEntries = entries.map(entry => ({
+        date: entry.date,
+        score: entry.score,
+        duration: entry.duration,
+        fiber: entry.fiber,
+        mood: entry.mood,
+        notes: entry.notes,
+        didPoop: entry.didPoop,
+        createdAt: entry.createdAt
+      }));
+
+      // Log the data being sent to Groq
+      console.log('Sending to Groq:', {
+        entries: formattedEntries,
+        prompt: `Analyze this poop data and provide a health summary:
+        ${JSON.stringify(formattedEntries, null, 2)}
+        
+        Please analyze the following aspects:
+        1. Poop frequency and consistency
+        2. Fiber intake patterns
+        3. Mood correlation with bowel movements
+        4. Duration of bowel movements
+        5. Overall gut health trends
+        
+        Provide actionable recommendations based on the data.`
+      });
+
+      // Log the data being sent to Groq
+      console.log('Sending to Groq:', {
+        entries: formattedEntries,
+        prompt: `Analyze this poop data and provide a health summary:
+        ${JSON.stringify(formattedEntries, null, 2)}`
+      });
+
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -42,7 +77,7 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
             {
               role: "user",
               content: `Analyze this poop data and provide a health summary:
-              ${JSON.stringify(entries, null, 2)}`
+              ${JSON.stringify(formattedEntries, null, 2)}`
             }
           ]
         })
