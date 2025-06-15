@@ -69,17 +69,24 @@ const getFormattedPrice = (product: StoreProduct) => {
   if (!product) return 'N/A';
   
   // Try different price formats
-  const price = product.price || product.price_string || product.displayPrice;
+  let price = product.price || product.price_string || product.displayPrice;
   if (!price) return 'N/A';
+  
+  // Convert price to number if it's a string
+  price = typeof price === 'string' ? parseFloat(price) : price;
+  if (isNaN(price)) return 'N/A';
   
   // Format price based on period
   const period = getPeriod(product);
   if (period === 'Monthly') {
-    return `$${price}/month`;
+    return `$${price.toFixed(2)}/month`;
   } else if (period === 'Yearly') {
-    return `$${price}/year`;
+    // For yearly plans, show both yearly and monthly equivalent
+    const yearlyPrice = price;
+    const monthlyPrice = yearlyPrice / 12;
+    return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
   }
-  return `$${price}`;
+  return `$${price.toFixed(2)}`;
 };
 
 // Helper function to get title
@@ -99,7 +106,7 @@ const getPackageTitle = (pkg: ExtendedPackage) => {
   if (period === 'Monthly') {
     return 'Monthly Premium';
   } else if (period === 'Yearly') {
-    return 'Annual Premium';
+    return 'Annual Premium (Save 20%)';
   }
   return pkg.identifier;
 };
