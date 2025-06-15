@@ -13,13 +13,25 @@ import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, i
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
   const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize RevenueCat SDK
+    // Initialize RevenueCat SDK and fetch offerings
     if (user) {
       initializeRevenueCat(user.id).catch(error => {
         console.error('Failed to initialize RevenueCat:', error);
         toast.error('Failed to initialize premium features');
+      });
+
+      // Fetch offerings
+      getOfferings().then(fetchedOfferings => {
+        setOfferings(fetchedOfferings);
+        setLoading(false);
+      }).catch(error => {
+        console.error('Failed to fetch offerings:', error);
+        toast.error('Failed to load premium plans');
+        setLoading(false);
       });
     }
   }, [user]);
@@ -110,15 +122,55 @@ export function PremiumUpgrade() {
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown className="w-6 h-6 text-yellow-600" />
-            <CardTitle className="text-2xl">Premium Plan</CardTitle>
+            <CardTitle className="text-2xl">Premium Plans</CardTitle>
           </div>
-          <div className="text-4xl font-bold text-yellow-700 dark:text-yellow-300">
-            $4.99/month
-          </div>
-          <p className="text-muted-foreground">Monthly subscription with all premium features</p>
         </CardHeader>
         
         <CardContent className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
+            </div>
+          ) : offerings.length === 0 ? (
+            <div className="text-center text-muted-foreground">
+              No premium plans available
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {offerings.map((offering, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
+                  <h3 className="font-semibold mb-4">{offering.identifier}</h3>
+                  <div className="space-y-4">
+                    {offering.availablePackages.map((pkg, pkgIndex) => (
+                      <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{pkg.identifier}</h4>
+                            <p className="text-sm text-muted-foreground">{pkg.storeProduct?.title}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                              {pkg.storeProduct?.price}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {pkg.storeProduct?.period}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          {pkg.storeProduct?.description?.split('\n').map((line, lineIndex) => (
+                            <p key={lineIndex} className="text-sm text-muted-foreground">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">What's included:</h3>
             <div className="grid gap-4">
@@ -156,13 +208,15 @@ export function PremiumUpgrade() {
             </div>
           </div>
 
-          <Button
-            onClick={handleUpgrade}
-            className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
-          >
-            <Crown className="w-4 h-4 mr-2" />
-            Upgrade to Premium
-          </Button>
+          {offerings.length > 0 && (
+            <Button
+              onClick={handleUpgrade}
+              className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Upgrade to Premium
+            </Button>
+          )}
         </CardContent>
       </Card>
 
