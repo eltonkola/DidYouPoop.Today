@@ -4,6 +4,7 @@ import { cloudSync } from './cloud-sync';
 
 export interface PoopEntry {
   id: string;
+  user_id: string;
   date: string; // YYYY-MM-DD format
   didPoop: boolean;
   duration: number; // in seconds

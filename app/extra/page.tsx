@@ -4,6 +4,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Crown, ShieldCheck, BarChart3, Globe, Sparkles } from 'lucide-react';
 import { AdvancedAnalytics } from '@/components/analytics/advanced-analytics';
+import { GlobalStatistics } from '@/components/analytics/global-statistics';
 import { motion } from 'framer-motion';
 import { usePoopStore } from '@/lib/store';
 
@@ -88,7 +89,7 @@ export default function ExtraFeaturesPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-pink-500" />
+                <Sparkles className="w-5 h-5 text-yellow-500" />
                 <CardTitle>Expert Insights</CardTitle>
               </div>
             </CardHeader>
@@ -100,13 +101,26 @@ export default function ExtraFeaturesPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Dietary suggestions</span>
+                  <span>AI-powered poop analysis</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Lifestyle tips</span>
+                  <span>Expert diet suggestions</span>
                 </li>
               </ul>
+            </CardContent>
+          </Card>
+
+          {/* Global Statistics */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-blue-500" />
+                <CardTitle>Global Statistics</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <GlobalStatistics />
             </CardContent>
           </Card>
         </div>
