@@ -3,7 +3,9 @@
 import { useAuthStore } from '@/lib/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Crown, ShieldCheck, BarChart3, Globe, Sparkles } from 'lucide-react';
+import { AdvancedAnalytics } from '@/components/analytics/advanced-analytics';
 import { motion } from 'framer-motion';
+import { usePoopStore } from '@/lib/store';
 
 export default function ExtraFeaturesPage() {
   const { user } = useAuthStore();
@@ -52,20 +54,7 @@ export default function ExtraFeaturesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Detailed trend analysis</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Custom date range reports</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Export data to CSV</span>
-                </li>
-              </ul>
+              <AdvancedAnalytics />
             </CardContent>
           </Card>
 
