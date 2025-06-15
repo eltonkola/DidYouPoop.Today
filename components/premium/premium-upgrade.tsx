@@ -9,23 +9,62 @@ import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp,
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
+import { Package } from '@revenuecat/purchases-js';
 
-// Helper function to get formatted price
-const getFormattedPrice = (product: any) => {
-  if (!product) return 'N/A';
-  const price = product.price || product.price_string || product.displayPrice;
-  if (!price) return 'N/A';
-  return `$${price}`;
+// Extended Package interface with our additional properties
+interface ExtendedPackage extends Package {
+  storeProduct?: StoreProduct;
+}
+
+// Constants for common identifiers
+const COMMON_PRODUCTS: Record<string, StoreProduct> = {
+  '$rc_monthly': {
+    title: 'Monthly Premium',
+    description: 'Get monthly access to premium features'
+  },
+  '$rc_annual': {
+    title: 'Annual Premium',
+    description: 'Get yearly access to premium features'
+  }
+};
+
+// Type definitions
+interface StoreProduct {
+  title?: string;
+  name?: string;
+  displayName?: string;
+  description?: string;
+  summary?: string;
+  localizedDescription?: string;
+  price?: number | string;
+  price_string?: string;
+  displayPrice?: string;
+  period?: string;
+  subscriptionPeriod?: string;
+  subscription_period?: string;
+  duration?: string;
+}
+
+// Constants for common identifiers
+const COMMON_PRODUCTS = {
+  '$rc_monthly': {
+    title: 'Monthly Premium',
+    description: 'Get monthly access to premium features'
+  },
+  '$rc_annual': {
+    title: 'Annual Premium',
+    description: 'Get yearly access to premium features'
+  }
 };
 
 // Helper function to get period
-const getPeriod = (product: any) => {
+const getPeriod = (product: StoreProduct) => {
   if (!product) return 'Monthly';
   const period = product.subscriptionPeriod || product.subscription_period || product.period || product.duration;
   if (!period) return 'Monthly';
   
   // Common period formats
-  const periodMap = {
+  const periodMap: Record<string, string> = {
     'P1M': 'Monthly',
     'P1Y': 'Yearly',
     'P1W': 'Weekly',
@@ -37,18 +76,55 @@ const getPeriod = (product: any) => {
   return periodMap[period] || period;
 };
 
+// Helper function to get formatted price
+const getFormattedPrice = (product: StoreProduct) => {
+  if (!product) return 'N/A';
+  
+  // Try different price formats
+  const price = product.price || product.price_string || product.displayPrice;
+  if (!price) return 'N/A';
+  
+  // Format price based on period
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return `$${price}/month`;
+  } else if (period === 'Yearly') {
+    return `$${price}/year`;
+  }
+  return `$${price}`;
+};
+
 // Helper function to get title
-const getPackageTitle = (pkg: any) => {
+// Helper function to get title
+const getPackageTitle = (pkg: ExtendedPackage) => {
   if (!pkg) return 'Unknown Package';
-  const product = pkg.storeProduct || pkg;
-  return product.title || product.name || product.displayName || product.identifier;
+  
+  // Get product info from storeProduct or common products
+  const product = pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier];
+  
+  // Try to get title from product data first
+  const title = product?.title || product?.name || product?.displayName;
+  if (title) return title;
+  
+  // If no title found, use identifier
+  return pkg.identifier;
 };
 
 // Helper function to get description
-const getPackageDescription = (pkg: any) => {
+// Helper function to get description
+const getPackageDescription = (pkg: ExtendedPackage) => {
   if (!pkg) return '';
-  const product = pkg.storeProduct || pkg;
-  return product.description || product.summary || product.localizedDescription || `Get ${getPeriod(product)} access`;
+  
+  // Get product info from storeProduct or common products
+  const product = pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier];
+  
+  // Try to get description from product data first
+  const description = product?.description || product?.summary || product?.localizedDescription;
+  if (description) return description;
+  
+  // If no description found, use default based on period
+  const period = getPeriod(pkg.storeProduct || product);
+  return `Get ${period} access to premium features`;
 };
 
 export function PremiumUpgrade() {
@@ -93,7 +169,7 @@ export function PremiumUpgrade() {
       }
 
       // Purchase the selected package
-      await purchasePackage(selectedPackage);
+      await purchasePackage(selectedPackage as ExtendedPackage);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
@@ -165,7 +241,7 @@ export function PremiumUpgrade() {
             <div className="space-y-6">
               {offerings.map((offering, index) => (
                 <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
-                  <h3 className="font-semibold mb-4">{offering.storeProduct?.title || offering.identifier}</h3>
+                  <h3 className="font-semibold mb-4">Premium</h3>
                   <div className="space-y-4">
                     {offering.availablePackages.map((pkg, pkgIndex) => (
                       <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
@@ -176,10 +252,10 @@ export function PremiumUpgrade() {
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {getFormattedPrice(pkg.storeProduct)}
+                              {getFormattedPrice(pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier])}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {getPeriod(pkg.storeProduct)}
+                              {getPeriod(pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier])}
                             </p>
                           </div>
                         </div>
