@@ -1,15 +1,17 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { useAuthStore } from '@/lib/auth-store';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
+import { Package, Offering } from '@revenuecat/purchases-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '@/lib/auth-store';
-import { toast } from 'sonner';
-import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
-import { Package } from '@revenuecat/purchases-js';
+import { Purchases } from '@revenuecat/purchases-js';
 import { ReactNode } from 'react';
 
 // Extended Package interface with our additional properties
@@ -38,6 +40,29 @@ interface StoreProduct {
     periodType?: string;
     numberOfUnits?: number;
   }[];
+  webBillingProduct?: {
+    title?: string;
+    description?: string;
+    currentPrice?: {
+      formattedPrice?: string;
+    };
+    normalPeriodDuration?: string;
+  };
+  rcBillingProduct?: {
+    title?: string;
+    description?: string;
+    currentPrice?: {
+      formattedPrice?: string;
+    };
+    normalPeriodDuration?: string;
+  };
+}
+
+interface Package {
+  identifier: string;
+  storeProduct: StoreProduct;
+  webBillingProduct?: StoreProduct;
+  rcBillingProduct?: StoreProduct;
 }
 
 // Constants for common identifiers
@@ -89,12 +114,6 @@ const getPeriod = (product: any): string => {
   if (periodDuration.includes('P1Y') || periodDuration.includes('year')) return 'Yearly';
 
   return periodDuration;
-  if (period === 'Monthly') {
-    return `$${price.toFixed(2)}/month`;
-  } else if (period === 'Yearly') {
-    const yearlyPrice = price;
-    const monthlyPrice = yearlyPrice / 12;
-    return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
   }
   
   return `$${price.toFixed(2)}`;
@@ -188,156 +207,90 @@ export function PremiumUpgrade() {
       }
 
       // Purchase the selected package
-      await purchasePackage(selectedPackage as ExtendedPackage);
-      toast.success('Premium subscription purchased successfully!');
-      router.push('/premium/success');
-    } catch (error: any) {
-      if (error.userCancelled) {
-        // User cancelled the purchase
-        return;
+      const purchaseResult = await instance.purchasePackage(selectedPackage);
+
+      if (purchaseResult.success) {
+        toast.success('Successfully upgraded to premium!');
+        router.push('/premium/success');
+      } else {
+        toast.error('Purchase failed. Please try again.');
       }
-      console.error('Purchase failed:', error);
-      toast.error(error.message || 'Failed to purchase premium subscription');
+    } catch (err) {
+      console.error('Error during purchase:', err);
+      toast.error('Error during purchase. Please try again.');
     }
   };
 
-  const features = [
-    {
-      icon: BarChart3,
-      title: 'Advanced Analytics',
-      description: 'Detailed insights into your gut health patterns and trends',
-    },
-    {
-      icon: Calendar,
-      title: 'Cross-Device Sync',
-      description: 'Access your data from any device with cloud synchronization',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Premium Insights',
-      description: 'AI-powered recommendations for better digestive health',
-    },
-    {
-      icon: Star,
-      title: 'Priority Support',
-      description: 'Get help faster with premium customer support',
-    },
-  ];
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 text-6xl mb-4">
-          <Crown className="w-16 h-16 text-yellow-600" />
-          <Sparkles className="w-12 h-12 text-yellow-500" />
-        </div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
-          Upgrade to Premium
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          Unlock advanced features and take your gut health tracking to the next level!
-        </p>
-      </div>
+    <div className="max-w-2xl mx-auto p-4">
+      <Card>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold">Upgrade to Premium</h2>
+              <p className="text-gray-600 mt-2">
+                Get access to all premium features and support the development of DidYouPoop.Today
+              </p>
+            </div>
 
-      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 border-yellow-200 dark:border-yellow-800">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Crown className="w-6 h-6 text-yellow-600" />
-            <CardTitle className="text-2xl">Premium Plans</CardTitle>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {loading ? (
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
-            </div>
-          ) : offerings.length === 0 ? (
-            <div className="text-center text-muted-foreground">
-              No premium plans available
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {offerings.map((offering, index) => (
-                <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
-                  <h3 className="font-semibold mb-4">Premium</h3>
-                  <div className="space-y-4">
-                    {offering.availablePackages.map((pkg, pkgIndex) => (
-                      <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{getPackageTitle(pkg)}</h4>
-                            <p className="text-sm text-muted-foreground">{getPackageDescription(pkg)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {(() => {
-                                console.log('Rendering price for package:', pkg.identifier, pkg.storeProduct);
-                                return getFormattedPrice(pkg.storeProduct) as ReactNode;
-                              })()}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {(() => {
-                                console.log('Rendering period for package:', pkg.identifier, pkg.storeProduct);
-                                return getPeriod(pkg.storeProduct) as ReactNode;
-                              })()}
-                            </p>
+            {isInitializing ? (
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-gray-400" />
+                <p className="mt-2 text-sm text-gray-500">Initializing subscription system...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-600">
+                <p>{error}</p>
+                <Button
+                  onClick={initializeRevenueCat}
+                  className="mt-4 bg-red-600 hover:bg-red-700"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {offerings.map((offering, index) => (
+                  <div key={index} className="space-y-4">
+                    {offering.availablePackages.map((pkg: Package) => (
+                      <div key={pkg.identifier} className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-semibold">{getPackageTitle(pkg)}</h4>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold">{getFormattedPrice(pkg)}</span>
+                            <span className="text-sm text-gray-500">{getPeriod(pkg)}</span>
                           </div>
                         </div>
                         <div className="mt-4 space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="radio"
-                              id={`package-${pkg.identifier}`}
-                              name="package"
-                              value={pkg.identifier}
-                              checked={selectedPackage?.identifier === pkg.identifier}
-                              onChange={() => setSelectedPackage(pkg)}
-                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
-                            />
-                            <label htmlFor={`package-${pkg.identifier}`} className="text-sm text-muted-foreground">
-                              Select this plan
-                            </label>
-                          </div>
-                          {pkg.storeProduct?.introductory_price && (
-                            <p className="text-sm text-green-600">
-                              Introductory price: {pkg.storeProduct.introductory_price_string}
-                            </p>
-                          )}
-                          {pkg.storeProduct?.discounts && pkg.storeProduct.discounts.length > 0 && (
-                            <p className="text-sm text-blue-600">
-                              Discount available
-                            </p>
-                          )}
+                          <p className="text-gray-600">{getPackageDescription(pkg)}</p>
+                          <button
+                            onClick={() => setSelectedPackage(pkg)}
+                            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                          >
+                            Select this plan
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">What's included:</h3>
-            <div className="grid gap-4">
-              {features.map((feature, index) => {
-                const IconComponent = feature.icon;
-                return (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <IconComponent className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{feature.title}</h4>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <Separator />
+          {selectedPackage && (
+            <div className="mt-6">
+              <Button
+                onClick={handleUpgrade}
+                className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
+                disabled={!selectedPackage}
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                {selectedPackage ? 'Upgrade to Selected Plan' : 'Please select a plan first'}
+              </Button>
+              <p className="text-center text-sm text-gray-500 mt-2">
+                You have selected: {selectedPackage.storeProduct?.title || selectedPackage.identifier}
+              </p>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
