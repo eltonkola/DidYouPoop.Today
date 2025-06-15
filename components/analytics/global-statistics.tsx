@@ -1,122 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Globe, Users, TrendingUp, TrendingDown, Clock, Leaf, Calendar, BarChart3 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { usePoopStore } from '@/lib/store';
+import { BarChart3, TrendingUp, Clock, Leaf } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/auth-store';
-import { format } from 'date-fns';
-import { supabase, Database } from '@/lib/supabase';
-import { isSupabaseConfigured } from '@/lib/supabase';
-import { PoopEntry } from '@/lib/store';
-
-type PoopEntryRow = Database['public']['Tables']['poop_entries']['Row'];
-
-interface GlobalStats {
-  totalUsers: number;
-  dailyAverage: {
-    poops: number;
-    duration: number;
-    fiber: number;
-  };
-  moodDistribution: {
-    happy: number;
-    neutral: number;
-    sad: number;
-  };
-  timeOfDay: {
-    morning: number;
-    afternoon: number;
-    evening: number;
-  };
-  consistencyScores: number[];
-  streakStats: {
-    average: number;
-    longest: number;
-  };
-}
-
-const calculateGlobalStats = (entries: PoopEntry[], userCount: number): GlobalStats => {
-  const totalEntries = entries.length;
-  const totalDays = Math.max(1, Math.ceil(totalEntries / userCount));
-
-  // Calculate daily averages
-  const dailyAverage = {
-    poops: totalEntries / totalDays,
-    duration: entries.reduce((sum, entry) => sum + entry.duration, 0) / totalEntries,
-    fiber: entries.reduce((sum, entry) => sum + entry.fiber, 0) / totalEntries,
-  };
-
-  // Calculate mood distribution
-  const moodDistribution = {
-    happy: entries.filter(e => e.mood === 'happy').length,
-    neutral: entries.filter(e => e.mood === 'neutral').length,
-    sad: entries.filter(e => e.mood === 'sad').length,
-  };
-
-  // Calculate time of day distribution
-  const timeOfDay = {
-    morning: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 5 && time < 12;
-    }).length,
-    afternoon: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 12 && time < 18;
-    }).length,
-    evening: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 18 || time < 5;
-    }).length,
-  };
-
-  // Calculate consistency scores
-  const consistencyScores = entries.map(e => e.score);
-
-  // Calculate streak statistics
-  const streakStats = {
-    average: 0,
-    longest: 0,
-  };
-
-  // Calculate streaks for each user
-  const userStreaks = new Map<string, { current: number; longest: number }>();
-
-  entries.forEach(entry => {
-    const userId = entry.user_id;
-    if (!userStreaks.has(userId)) {
-      userStreaks.set(userId, { current: 1, longest: 1 });
-    } else {
-      const streak = userStreaks.get(userId)!;
-      const prevEntry = entries.find(e => 
-        e.user_id === userId && 
-        new Date(e.created_at).getTime() < new Date(entry.created_at).getTime()
-      );
-
-      if (prevEntry && 
-          new Date(entry.created_at).getTime() - new Date(prevEntry.created_at).getTime() <= 86400000) {
-        streak.current++;
-        streak.longest = Math.max(streak.longest, streak.current);
-      } else {
-        streak.current = 1;
-      }
-    }
-  });
-
-  // Calculate average and longest streak
-  const streakData = Array.from(userStreaks.values());
-  streakStats.average = streakData.reduce((sum, streak) => sum + streak.longest, 0) / streakData.length;
-  streakStats.longest = Math.max(...streakData.map(streak => streak.longest));
-
-  return {
-    totalUsers: userCount,
-    dailyAverage,
-    moodDistribution,
-    timeOfDay,
-    consistencyScores,
-    streakStats,
-  };
-};
 
 interface GlobalStats {
   totalUsers: number;
@@ -163,49 +51,22 @@ export function GlobalStatistics() {
           return;
         }
 
-        // Fetch all entries while maintaining privacy
-        const { data: entries, error: entriesError } = await supabase
-          .from('poop_entries')
-          .select('*')
-          .order('created_at', { ascending: true });
+        // Call the Supabase Edge Function
+        const { data, error: fetchError } = await supabase.functions.invoke('global-stats');
 
-        if (entriesError) {
-          setError('Failed to fetch entries: ' + (entriesError as any).message || 'Unknown error occurred');
+        if (fetchError) {
+          setError('Failed to fetch global statistics: ' + (fetchError as any).message);
           setLoading(false);
           return;
         }
 
-        if (!entries || entries.length === 0) {
-          setError('No poop entries recorded yet. Start tracking your poops to see global statistics!');
+        if (!data) {
+          setError('No data returned from global statistics function');
           setLoading(false);
           return;
         }
 
-        // Type assertion to convert Supabase response to PoopEntry array
-        const typedEntries = entries as PoopEntry[];
-
-        if (entriesError) {
-          setError('Failed to fetch entries: ' + entriesError.message);
-          setLoading(false);
-          return;
-        }
-
-        if (!entries || entries.length === 0) {
-          setError('No poop entries recorded yet. Start tracking your poops to see global statistics!');
-          setLoading(false);
-          return;
-        }
-
-        // Calculate user count by getting unique user_ids from entries
-        const userCount = new Set(entries.map(entry => entry.user_id)).size;
-        if (!userCount) {
-          setError('No users registered in the system yet. Be the first to add your data!');
-          setLoading(false);
-          return;
-        }
-
-        const stats = calculateGlobalStats(typedEntries, userCount);
-        setStats(stats);
+        setStats(data);
       } catch (err) {
         console.error('Error fetching global stats:', err);
         setError('Failed to load global statistics. Please try again later.');
@@ -259,123 +120,188 @@ export function GlobalStatistics() {
     (stats.moodDistribution.happy + stats.moodDistribution.neutral + stats.moodDistribution.sad)) * 100;
   const consistencyScore = Math.round((stats.consistencyScores.filter(score => score >= 80).length / stats.consistencyScores.length) * 100);
 
-  const calculateGlobalStats = (entries: PoopEntry[], userCount: number): GlobalStats => {
-    const totalEntries = entries.length;
-    const totalDays = Math.max(1, Math.ceil(totalEntries / userCount));
-
-    // Calculate daily averages
-    const dailyAverage = {
-      poops: totalEntries / totalDays,
-      duration: entries.reduce((sum, entry) => sum + entry.duration, 0) / totalEntries,
-      fiber: entries.reduce((sum, entry) => sum + entry.fiber, 0) / totalEntries,
-    };
-
-    // Calculate mood distribution
-    const moodDistribution = {
-      happy: entries.filter(e => e.mood === 'happy').length,
-      neutral: entries.filter(e => e.mood === 'neutral').length,
-      sad: entries.filter(e => e.mood === 'sad').length,
-    };
-
-    // Calculate time of day distribution
-    const timeOfDay = {
-      morning: entries.filter(e => {
-        const time = new Date(e.createdAt).getHours();
-        return time >= 5 && time < 12;
-      }).length,
-      afternoon: entries.filter(e => {
-        const time = new Date(e.createdAt).getHours();
-        return time >= 12 && time < 18;
-      }).length,
-      evening: entries.filter(e => {
-        const time = new Date(e.createdAt).getHours();
-        return time >= 18 || time < 5;
-      }).length,
-    };
-
-    // Calculate consistency scores
-    const consistencyScores = entries.map(e => e.score);
-
-    // Calculate streak statistics
-    const streakStats = {
-      average: 0,
-      longest: 0,
-    };
-
-    // Calculate streaks for each user
-    const userStreaks = new Map<string, { current: number; longest: number }>();
-
-    entries.forEach(entry => {
-      const userId = entry.user_id;
-      if (!userStreaks.has(userId)) {
-        userStreaks.set(userId, { current: 1, longest: 1 });
-      } else {
-        const streak = userStreaks.get(userId)!;
-        const prevEntry = entries.find(e => 
-          e.user_id === userId && 
-          new Date(e.createdAt).getTime() < new Date(entry.createdAt).getTime()
-        );
-
-        if (prevEntry && 
-            new Date(entry.createdAt).getTime() - new Date(prevEntry.createdAt).getTime() <= 86400000) {
-          streak.current++;
-          streak.longest = Math.max(streak.longest, streak.current);
-        } else {
-          streak.current = 1;
-        }
-      }
-    });
-
-    // Calculate average and longest streak
-    const streakData = Array.from(userStreaks.values());
-    streakStats.average = streakData.reduce((sum, streak) => sum + streak.longest, 0) / streakData.length;
-    streakStats.longest = Math.max(...streakData.map(streak => streak.longest));
-
-    return {
-      totalUsers: userCount,
-      dailyAverage,
-      moodDistribution,
-      timeOfDay,
-      consistencyScores,
-      streakStats,
-    };
-  };
-
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <Globe className="w-6 h-6 text-blue-500" />
-          <h1 className="text-3xl font-bold">Global Statistics</h1>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* User Base */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-500" />
-              <CardTitle>Total Users</CardTitle>
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Global Statistics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium">Total Users</h3>
+                  <p className="mt-1 text-3xl font-semibold">{stats.totalUsers.toLocaleString()}</p>
+                </div>
+                <div className="w-6 h-6" />
+              </div>
             </div>
+
+            <div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium">Daily Average Poops</h3>
+                  <p className="mt-1 text-2xl font-semibold">{stats.dailyAverage.poops.toFixed(1)}</p>
+                </div>
+                <BarChart3 className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium">Happy Poop Rate</h3>
+                  <p className="mt-1 text-2xl font-semibold">{moodPercentage.toFixed(1)}%</p>
+                </div>
+                <TrendingUp className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium">Consistency Score</h3>
+                  <p className="mt-1 text-2xl font-semibold">{consistencyScore}%</p>
+                </div>
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+interface GlobalStats {
+  totalUsers: number;
+  dailyAverage: {
+    poops: number;
+    duration: number;
+    fiber: number;
+  };
+  moodDistribution: {
+    happy: number;
+    neutral: number;
+    sad: number;
+  };
+  timeOfDay: {
+    morning: number;
+    afternoon: number;
+    evening: number;
+  };
+  consistencyScores: number[];
+  streakStats: {
+    average: number;
+    longest: number;
+  };
+}
+
+export function GlobalStatistics() {
+  const { user } = useAuthStore();
+  const [stats, setStats] = useState<GlobalStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchGlobalStats = async () => {
+      try {
+        if (!user) {
+          setError('Please sign in to view global statistics');
+          setLoading(false);
+          return;
+        }
+
+        if (!supabase) {
+          setError('Failed to initialize Supabase client. Please try refreshing the page.');
+          setLoading(false);
+          return;
+        }
+
+        // Call the Supabase Edge Function
+        const { data, error: fetchError } = await supabase.functions.invoke('global-stats');
+
+        if (fetchError) {
+          setError('Failed to fetch global statistics: ' + (fetchError as any).message);
+          setLoading(false);
+          return;
+        }
+
+        if (!data) {
+          setError('No data returned from global statistics function');
+          setLoading(false);
+          return;
+        }
+
+        setStats(data);
+      } catch (err) {
+        console.error('Error fetching global stats:', err);
+        setError('Failed to load global statistics. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGlobalStats();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Global Statistics</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.totalUsers.toLocaleString()}
+            <div className="flex items-center justify-center space-x-2">
+              <BarChart3 className="w-6 h-6 animate-spin" />
+              <span>Loading global statistics...</span>
             </div>
-            <p className="text-muted-foreground">
-              Active users in our community
-            </p>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
 
-        {/* Daily Poop Stats */}
-        <Card>
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-500" />
-              <CardTitle>Daily Poop Stats</CardTitle>
-            </div>
+            <CardTitle>Global Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-500">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return null;
+  }
+
+  // Calculate some derived statistics
+  const moodPercentage = (stats.moodDistribution.happy / 
+    (stats.moodDistribution.happy + stats.moodDistribution.neutral + stats.moodDistribution.sad)) * 100;
+  const consistencyScore = Math.round((stats.consistencyScores.filter(score => score >= 80).length / stats.consistencyScores.length) * 100);
+
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Global Statistics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium">Total Users</h3>
+                  <p className="mt-1 text-3xl font-semibold">{stats.totalUsers.toLocaleString()}</p>
+                </div>
+                <div className="w-6 h-6" />
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
