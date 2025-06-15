@@ -87,17 +87,22 @@ export function GlobalStatistics() {
           throw new Error('Failed to fetch entries: ' + entriesError.message);
         }
 
-        // Fetch user count
-        const { count: userCount, error: userCountError } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact' });
+        // Fetch user count from auth.users
+        const { data: users, error: userCountError } = await supabase
+          .from('auth.users')
+          .select('id');
 
         if (userCountError) {
           throw new Error('Failed to fetch user count: ' + userCountError.message);
         }
 
-        if (!entries || entries.length === 0 || !userCount) {
-          throw new Error('No data available in the database');
+        const userCount = users?.length || 0;
+        if (!userCount) {
+          throw new Error('No users registered in the system yet. Be the first to add your data!');
+        }
+
+        if (!entries || entries.length === 0) {
+          throw new Error('No poop entries recorded yet. Start tracking your poops to see global statistics!');
         }
 
         const stats = calculateGlobalStats(entries, userCount);
