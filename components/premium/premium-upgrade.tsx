@@ -16,18 +16,6 @@ interface ExtendedPackage extends Package {
   storeProduct?: StoreProduct;
 }
 
-// Constants for common identifiers
-const COMMON_PRODUCTS: Record<string, StoreProduct> = {
-  '$rc_monthly': {
-    title: 'Monthly Premium',
-    description: 'Get monthly access to premium features'
-  },
-  '$rc_annual': {
-    title: 'Annual Premium',
-    description: 'Get yearly access to premium features'
-  }
-};
-
 // Type definitions
 interface StoreProduct {
   title?: string;
@@ -99,14 +87,20 @@ const getFormattedPrice = (product: StoreProduct) => {
 const getPackageTitle = (pkg: ExtendedPackage) => {
   if (!pkg) return 'Unknown Package';
   
-  // Get product info from storeProduct or common products
-  const product = pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier];
+  // Get product info from storeProduct
+  const product = pkg.storeProduct;
   
   // Try to get title from product data first
   const title = product?.title || product?.name || product?.displayName;
   if (title) return title;
   
-  // If no title found, use identifier
+  // If no title found, create a human-readable title based on period
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly Premium';
+  } else if (period === 'Yearly') {
+    return 'Annual Premium';
+  }
   return pkg.identifier;
 };
 
@@ -115,15 +109,20 @@ const getPackageTitle = (pkg: ExtendedPackage) => {
 const getPackageDescription = (pkg: ExtendedPackage) => {
   if (!pkg) return '';
   
-  // Get product info from storeProduct or common products
-  const product = pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier];
+  // Get product info from storeProduct
+  const product = pkg.storeProduct;
   
   // Try to get description from product data first
   const description = product?.description || product?.summary || product?.localizedDescription;
   if (description) return description;
   
-  // If no description found, use default based on period
-  const period = getPeriod(pkg.storeProduct || product);
+  // If no description found, create a default based on period
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly access to all premium features';
+  } else if (period === 'Yearly') {
+    return 'Yearly access to all premium features (save 20%)';
+  }
   return `Get ${period} access to premium features`;
 };
 
@@ -252,10 +251,10 @@ export function PremiumUpgrade() {
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {getFormattedPrice(pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier])}
+                              {getFormattedPrice(pkg.storeProduct)}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {getPeriod(pkg.storeProduct || COMMON_PRODUCTS[pkg.identifier])}
+                              {getPeriod(pkg.storeProduct)}
                             </p>
                           </div>
                         </div>
