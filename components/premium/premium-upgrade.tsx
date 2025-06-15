@@ -32,6 +32,12 @@ interface StoreProduct {
   subscriptionPeriod?: string;
   subscription_period?: string;
   duration?: string;
+  identifier?: string;
+  subscriptionPeriods?: {
+    period?: string;
+    periodType?: string;
+    numberOfUnits?: number;
+  }[];
 }
 
 // Constants for common identifiers
@@ -49,17 +55,50 @@ const COMMON_PRODUCTS = {
 // Helper function to get period
 const getPeriod = (product: StoreProduct | undefined): string => {
   if (!product) {
+    console.log('Product is undefined');
     return 'Monthly';
   }
   
-  const period = product.subscription_period || product.period;
+  // Log all available period properties
+  console.log('Product period properties:', {
+    id: product.identifier,
+    subscription_period: product.subscription_period,
+    period: product.period,
+    subscriptionPeriod: product.subscriptionPeriod,
+    duration: product.duration,
+    subscriptionPeriods: product.subscriptionPeriods
+  });
+  
+  // Try different period formats
+  // First check the subscriptionPeriods array if it exists
+  if (product.subscriptionPeriods?.length) {
+    const period = product.subscriptionPeriods[0];
+    if (period) {
+      console.log('Found period in subscriptionPeriods:', period);
+      if (period.periodType === 'MONTH' || period.periodType === 'MONTHLY') {
+        return 'Monthly';
+      } else if (period.periodType === 'YEAR' || period.periodType === 'YEARLY') {
+        return 'Yearly';
+      }
+    }
+  }
+  
+  // Then check other period properties
+  const period = product.subscription_period || 
+                product.subscriptionPeriod || 
+                product.period || 
+                product.duration;
+  
   if (!period) {
+    console.log('No period found');
     return 'Monthly';
   }
+  
+  console.log('Raw period:', period);
   
   // Convert period string to human-readable format
-  if (period.includes('P1M')) return 'Monthly';
-  if (period.includes('P1Y')) return 'Yearly';
+  if (period.includes('P1M') || period.includes('month')) return 'Monthly';
+  if (period.includes('P1Y') || period.includes('year')) return 'Yearly';
   
   return period;
 };
@@ -67,19 +106,34 @@ const getPeriod = (product: StoreProduct | undefined): string => {
 // Helper function to get formatted price
 const getFormattedPrice = (product: StoreProduct | undefined): string => {
   if (!product) {
+    console.log('Product is undefined');
     return 'N/A';
   }
   
-  let price = product.price || product.price_string || product.displayPrice;
-  if (!price) {
-    return 'N/A';
+  // Log all available price properties
+  console.log('Product price properties:', {
+    id: product.identifier,
+    price: product.price,
+    price_string: product.price_string,
+    displayPrice: product.displayPrice,
+    priceNumber: typeof product.price === 'string' ? parseFloat(product.price as string) : product.price,
+    priceType: typeof product.price
+  });
+  
+  // Try different price formats
+  let price: number | undefined;
+  if (typeof product.price === 'string') {
+    price = parseFloat(product.price);
+  } else if (typeof product.price === 'number') {
+    price = product.price;
+  } else if (product.price_string) {
+    price = parseFloat(product.price_string);
+  } else if (product.displayPrice) {
+    price = parseFloat(product.displayPrice);
   }
   
-  if (typeof price === 'string') {
-    price = parseFloat(price);
-  }
-  
-  if (isNaN(price)) {
+  if (!price || isNaN(price)) {
+    console.log('No valid price found');
     return 'N/A';
   }
   
