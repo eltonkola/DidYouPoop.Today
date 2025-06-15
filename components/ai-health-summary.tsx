@@ -4,6 +4,15 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePoopStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
+import { marked } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
+
+// Configure marked to handle our formatting
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  smartypants: true,
+});
 
 interface AIHealthSummaryProps {
   isPremium: boolean;
@@ -42,11 +51,22 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
 
       const data = await response.json();
       // Format the response to make it more readable
-      const formattedResponse = data.choices[0].message.content
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line)
-        .join('\n');
+      // Format the response to make it more readable
+      const rawResponse = data.choices[0].message.content;
+      // Convert to markdown with proper formatting
+      const markdownResponse = rawResponse
+        .replace(/\*\*([^*]+)\*\*/g, '# $1')  // Convert **bold** to # headings
+        .replace(/\+ ([^\n]+)/g, '- $1')      // Convert + lists to - lists
+        .replace(/\* ([^\n]+)/g, '- $1')      // Convert * lists to - lists
+        .replace(/\n\n/, '\n\n\n');         // Add extra spacing between sections
+
+      // Convert markdown to HTML
+      const htmlResponse = marked(markdownResponse);
+      // Sanitize the HTML
+      const cleanHtml = DOMPurify.sanitize(htmlResponse);
+      
+      setHealthSummary(cleanHtml);
+      setIsExpanded(true);
       setHealthSummary(formattedResponse);
       setIsExpanded(true);
     } catch (error) {
@@ -79,13 +99,10 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
           {isExpanded && (
             <div className="prose prose-sm max-w-none">
               {healthSummary ? (
-                <div className="space-y-4">
-                  {healthSummary.split('\n\n').map((section, index) => (
-                    <div key={index} className="space-y-2">
-                      {section}
-                    </div>
-                  ))}
-                </div>
+                <div 
+                  className="space-y-6"
+                  dangerouslySetInnerHTML={{ __html: healthSummary }}
+                />
               ) : (
                 <p className="text-muted-foreground">
                   Click the button above to get your personalized health summary
