@@ -30,9 +30,20 @@ const navigation = [
   { name: 'Log Poop', href: '/log', icon: Plus },
   { name: 'History', href: '/history', icon: Calendar },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
-  { name: 'Extra', href: '/extra', icon: Crown },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
+
+// Function to check if user is premium
+const isPremium = (user: any) => user?.subscription_tier === 'premium';
+
+// Add Extra page to navigation if user is premium
+const getNavigationItems = (user: any) => {
+  const baseItems = [...navigation];
+  if (isPremium(user)) {
+    baseItems.splice(4, 0, { name: 'Extra', href: '/extra', icon: Crown });
+  }
+  return baseItems;
+};
 
 export function Navigation() {
   const pathname = usePathname();
@@ -81,7 +92,7 @@ export function Navigation() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {navigation.map((item) => (
+            {getNavigationItems(user).map((item) => (
               <NavLink key={item.name} item={item} />
             ))}
           </nav>
@@ -189,7 +200,7 @@ export function Navigation() {
                     )}
                     
                     <nav className="flex flex-col gap-2">
-                      {navigation.map((item) => (
+                      {getNavigationItems(user).map((item) => (
                         <NavLink key={item.name} item={item} mobile />
                       ))}
                     </nav>

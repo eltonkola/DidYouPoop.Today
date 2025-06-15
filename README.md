@@ -80,3 +80,7 @@ This project is licensed under the MIT License.
 ## Support
 
 For support, email support@didyoupoop.today or join our Discord community.
+
+## ai
+
+using https://console.groq.com/home
