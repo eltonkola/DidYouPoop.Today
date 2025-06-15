@@ -207,6 +207,13 @@ export function PremiumUpgrade() {
       getOfferings().then(fetchedOfferings => {
         setOfferings(fetchedOfferings);
         setLoading(false);
+        console.log('Fetched offerings:', fetchedOfferings);
+
+        console.log('monthly:', fetchedOfferings[0]);
+        console.log('yearly:', fetchedOfferings[1]);
+
+
+
       }).catch(error => {
         console.error('Failed to fetch offerings:', error);
         toast.error('Failed to load premium plans');
