@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ import { useAuthStore } from '@/lib/auth-store';
 import { UserMenu } from '@/components/auth/user-menu';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { cn } from '@/lib/utils';
+import { getUserSubscription } from '@/lib/subscription';
+import { isRevenueCatConfigured } from '@/lib/revenuecat';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -34,12 +36,43 @@ const navigation = [
 ];
 
 // Function to check if user is premium
-const isPremium = (user: any) => user?.subscription_tier === 'premium';
+const useIsPremium = () => {
+  const { user } = useAuthStore();
+  const [isPremium, setIsPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPremiumChecked, setIsPremiumChecked] = useState(false);
+
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      if (!isRevenueCatConfigured()) {
+        setIsPremiumChecked(true);
+        setIsPremium(false);
+        return;
+      }
+
+      try {
+        const subscription = await getUserSubscription();
+        setIsPremium(!!subscription?.isPremium);
+      } catch (error) {
+        console.error('Error checking premium status:', error);
+        setIsPremium(false);
+      } finally {
+        setIsPremiumChecked(true);
+      }
+    };
+
+    if (user) {
+      checkPremiumStatus();
+    }
+  }, [user]);
+
+  return { isPremium, isLoading: !isPremiumChecked };
+};
 
 // Add Extra page to navigation if user is premium
-const getNavigationItems = (user: any) => {
+const getNavigationItems = (user: any, isPremium: boolean) => {
   const baseItems = [...navigation];
-  if (isPremium(user)) {
+  if (isPremium) {
     baseItems.splice(4, 0, { name: 'Extra', href: '/extra', icon: Crown });
   }
   return baseItems;
@@ -51,6 +84,9 @@ export function Navigation() {
   const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const { isPremium, isLoading: isPremiumLoading } = useIsPremium();
+
+  const navigationItems = getNavigationItems(user, isPremium);
 
   const NavLink = ({ item, mobile = false }: { item: typeof navigation[0], mobile?: boolean }) => {
     const isActive = pathname === item.href;
@@ -92,7 +128,7 @@ export function Navigation() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {getNavigationItems(user).map((item) => (
+            {!isPremiumLoading && getNavigationItems(user, isPremium).map((item) => (
               <NavLink key={item.name} item={item} />
             ))}
           </nav>
@@ -166,7 +202,7 @@ export function Navigation() {
                   <div className="flex flex-col gap-4 mt-8">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-2xl">💩</span>
-                      <span className="font-bold text-lg">DidYouPoop.online</span>
+                      <span className="font-bold text-lg">DidYouPoop.Today</span>
                     </div>
                     
                     {/* Sync Status for mobile */}
@@ -200,7 +236,7 @@ export function Navigation() {
                     )}
                     
                     <nav className="flex flex-col gap-2">
-                      {getNavigationItems(user).map((item) => (
+                      {!isPremiumLoading && getNavigationItems(user, isPremium).map((item) => (
                         <NavLink key={item.name} item={item} mobile />
                       ))}
                     </nav>
