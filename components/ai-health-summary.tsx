@@ -11,7 +11,6 @@ import DOMPurify from 'isomorphic-dompurify';
 marked.setOptions({
   breaks: true,
   gfm: true,
-  smartypants: true,
 });
 
 interface AIHealthSummaryProps {
@@ -19,7 +18,7 @@ interface AIHealthSummaryProps {
 }
 
 export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
-  const [healthSummary, setHealthSummary] = useState<string>('');
+  const [healthSummary, setHealthSummary] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { entries } = usePoopStore();
@@ -101,7 +100,7 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
               {healthSummary ? (
                 <div 
                   className="space-y-6"
-                  dangerouslySetInnerHTML={{ __html: healthSummary }}
+                  dangerouslySetInnerHTML={{ __html: healthSummary || '' }}
                 />
               ) : (
                 <p className="text-muted-foreground">
