@@ -10,6 +10,43 @@ import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
 
+// Helper function to get formatted price
+const getFormattedPrice = (product: any) => {
+  if (!product) return 'N/A';
+  const price = product.price_string || product.price;
+  if (!price) return 'N/A';
+  return `$${price}`;
+};
+
+// Helper function to get period
+const getPeriod = (product: any) => {
+  if (!product) return 'Monthly';
+  const period = product.period || product.subscription_period || product.subscriptionPeriod;
+  if (!period) return 'Monthly';
+  
+  // Common period formats
+  const periodMap = {
+    'P1M': 'Monthly',
+    'P1Y': 'Yearly',
+    'P1W': 'Weekly',
+    'P7D': '7 Days'
+  };
+  
+  return periodMap[period] || period;
+};
+
+// Helper function to get title
+const getPackageTitle = (pkg: any) => {
+  if (!pkg) return 'Unknown Package';
+  return pkg.storeProduct?.title || pkg.storeProduct?.name || pkg.identifier;
+};
+
+// Helper function to get description
+const getPackageDescription = (pkg: any) => {
+  if (!pkg) return '';
+  return pkg.storeProduct?.description || pkg.storeProduct?.summary || `Get ${getPeriod(pkg.storeProduct)} access`;
+};
+
 export function PremiumUpgrade() {
   const { user } = useAuthStore();
   const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
@@ -124,21 +161,21 @@ export function PremiumUpgrade() {
             <div className="space-y-6">
               {offerings.map((offering, index) => (
                 <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
-                  <h3 className="font-semibold mb-4">{offering.identifier}</h3>
+                  <h3 className="font-semibold mb-4">{offering.storeProduct?.title || offering.identifier}</h3>
                   <div className="space-y-4">
                     {offering.availablePackages.map((pkg, pkgIndex) => (
                       <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-medium">{pkg.storeProduct?.title || pkg.identifier}</h4>
-                            <p className="text-sm text-muted-foreground">{pkg.storeProduct?.description || pkg.identifier}</p>
+                            <h4 className="font-medium">{getPackageTitle(pkg)}</h4>
+                            <p className="text-sm text-muted-foreground">{getPackageDescription(pkg)}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {pkg.storeProduct?.price_string || pkg.storeProduct?.price || 'N/A'}
+                              {getFormattedPrice(pkg.storeProduct)}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {pkg.storeProduct?.period || pkg.storeProduct?.subscription_period || 'Monthly'}
+                              {getPeriod(pkg.storeProduct)}
                             </p>
                           </div>
                         </div>
