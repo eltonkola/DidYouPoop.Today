@@ -34,28 +34,29 @@ export const initializeRevenueCat = async (userId?: string) => {
     
     // Dynamic import with better error handling
     const RevenueCatModule = await import('@revenuecat/purchases-js');
-    const Purchases = RevenueCatModule.default || RevenueCatModule;
+    const Purchases = RevenueCatModule.Purchases;
     
     if (!Purchases) {
       throw new Error('RevenueCat module not found');
     }
 
-    if (typeof Purchases.configure !== 'function') {
-      throw new Error('RevenueCat configure method not available');
-    }
-
     // Configure RevenueCat
-    await Purchases.configure(apiKey, userId);
+    const instance = await Purchases.configure(
+      apiKey,
+      userId || Purchases.generateRevenueCatAnonymousAppUserId(),
+      // No additional httpConfig needed for basic setup
+      undefined
+    );
     
-    // Store the instance for later use
-    purchasesInstance = Purchases;
+    // Store the instance
+    purchasesInstance = instance;
     isConfigured = true;
     
     console.log('RevenueCat initialized successfully');
     
     // Test the connection
     try {
-      await Purchases.getCustomerInfo();
+      const customerInfo = await instance.getCustomerInfo();
       console.log('RevenueCat connection test successful');
     } catch (testError) {
       console.warn('RevenueCat connection test failed:', testError);
