@@ -87,22 +87,14 @@ export function GlobalStatistics() {
           throw new Error('Failed to fetch entries: ' + entriesError.message);
         }
 
-        // Fetch user count from auth.users
-        const { data: users, error: userCountError } = await supabase
-          .from('auth.users')
-          .select('id');
-
-        if (userCountError) {
-          throw new Error('Failed to fetch user count: ' + userCountError.message);
-        }
-
-        const userCount = users?.length || 0;
-        if (!userCount) {
-          throw new Error('No users registered in the system yet. Be the first to add your data!');
-        }
-
         if (!entries || entries.length === 0) {
           throw new Error('No poop entries recorded yet. Start tracking your poops to see global statistics!');
+        }
+
+        // Calculate user count by getting unique user_ids from entries
+        const userCount = new Set(entries.map(entry => entry.user_id)).size;
+        if (!userCount) {
+          throw new Error('No users registered in the system yet. Be the first to add your data!');
         }
 
         const stats = calculateGlobalStats(entries, userCount);
