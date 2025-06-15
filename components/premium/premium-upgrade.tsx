@@ -9,7 +9,7 @@ import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp,
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
-import { Package } from '@revenuecat/purchases-js';
+import { Package, Offering } from '@revenuecat/purchases-js';
 import { ReactNode } from 'react';
 
 // Extended Package interface with our additional properties
@@ -194,6 +194,12 @@ export function PremiumUpgrade() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [monthlyPrice, setMonthlyPrice] = useState<string>('');
+  const [annualPrice, setAnnualPrice] = useState<string>('');
+  const [monthlyName, setMonthlyName] = useState<string>('');
+  const [annualName, setAnnualName] = useState<string>('');
+  const [monthlyDescription, setMonthlyDescription] = useState<string>('');
+  const [annualDescription, setAnnualDescription] = useState<string>('');
 
   useEffect(() => {
     // Initialize RevenueCat SDK and fetch offerings
@@ -209,27 +215,15 @@ export function PremiumUpgrade() {
         setLoading(false);
         console.log('Fetched offerings:', fetchedOfferings);
 
-        console.log('default:', fetchedOfferings[0]);
-
-        var  offering = fetchedOfferings[0];
-
-        var monthlyPrice = offering.monthly?.webBillingProduct.currentPrice.formattedPrice;
-        var annualPrice = offering.annual?.webBillingProduct.currentPrice.formattedPrice;
-
-        var monthlyName = offering.monthly?.webBillingProduct.displayName;
-        var annualName = offering.annual?.webBillingProduct.displayName;
-       
-        var monthlydescription = offering.monthly?.webBillingProduct.description;
-        var annualdescription = offering.annual?.webBillingProduct.description;
-          
-        
-
-        console.log('monthlyPrice:', monthlyPrice);
-        console.log('annualPrice:', annualPrice);
-        console.log('monthlyName:', monthlyName);
-        console.log('annualName:', annualName);
-        console.log('monthlydescription:', monthlydescription);
-        console.log('annualdescription:', annualdescription);
+        if (fetchedOfferings.length > 0) {
+          const offering = fetchedOfferings[0];
+          setMonthlyPrice(offering.monthly?.webBillingProduct.currentPrice.formattedPrice || '');
+          setAnnualPrice(offering.annual?.webBillingProduct.currentPrice.formattedPrice || '');
+          setMonthlyName(offering.monthly?.webBillingProduct.title || '');
+          setAnnualName(offering.annual?.webBillingProduct.title || '');
+          setMonthlyDescription(offering.monthly?.webBillingProduct.description || '');
+          setAnnualDescription(offering.annual?.webBillingProduct.description || '');
+        }
 
 
       }).catch(error => {
@@ -327,58 +321,80 @@ export function PremiumUpgrade() {
             <div className="space-y-6">
               {offerings.map((offering, index) => (
                 <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
-                  <h3 className="font-semibold mb-4">Premium</h3>
                   <div className="space-y-4">
-                    {offering.availablePackages.map((pkg, pkgIndex) => (
-                      <div key={pkgIndex} className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                    {/* Monthly Plan */}
+                    {offering.monthly && (
+                      <div className="p-4 border rounded-lg bg-white dark:bg-gray-900">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-medium">{getPackageTitle(pkg)}</h4>
-                            <p className="text-sm text-muted-foreground">{getPackageDescription(pkg)}</p>
+                            <h4 className="font-medium">{monthlyName}</h4>
+                            <p className="text-sm text-muted-foreground">{monthlyDescription}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                              {(() => {
-                                console.log('Rendering price for package:', pkg.identifier, pkg.storeProduct);
-                                return getFormattedPrice(pkg.storeProduct) as ReactNode;
-                              })()}
+                              {monthlyPrice}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              {(() => {
-                                console.log('Rendering period for package:', pkg.identifier, pkg.storeProduct);
-                                return getPeriod(pkg.storeProduct) as ReactNode;
-                              })()}
-                            </p>
+                            <Badge variant="default">Monthly</Badge>
                           </div>
                         </div>
                         <div className="mt-4 space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
                               type="radio"
-                              id={`package-${pkg.identifier}`}
+                              id={`monthly-package`}
                               name="package"
-                              value={pkg.identifier}
-                              checked={selectedPackage?.identifier === pkg.identifier}
-                              onChange={() => setSelectedPackage(pkg)}
+                              value="monthly"
+                              checked={selectedPackage?.identifier === 'monthly'}
+                              onChange={() => setSelectedPackage({
+                                identifier: 'monthly',
+                                storeProduct: offering.monthly?.webBillingProduct
+                              })}
                               className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
                             />
-                            <label htmlFor={`package-${pkg.identifier}`} className="text-sm text-muted-foreground">
+                            <label htmlFor={`monthly-package`} className="text-sm text-muted-foreground">
                               Select this plan
                             </label>
                           </div>
-                          {pkg.storeProduct?.introductory_price && (
-                            <p className="text-sm text-green-600">
-                              Introductory price: {pkg.storeProduct.introductory_price_string}
-                            </p>
-                          )}
-                          {pkg.storeProduct?.discounts && pkg.storeProduct.discounts.length > 0 && (
-                            <p className="text-sm text-blue-600">
-                              Discount available
-                            </p>
-                          )}
                         </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Annual Plan */}
+                    {offering.annual && (
+                      <div className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{annualName}</h4>
+                            <p className="text-sm text-muted-foreground">{annualDescription}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                              {annualPrice}
+                            </p>
+                            <Badge variant="default">Yearly</Badge>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id={`annual-package`}
+                              name="package"
+                              value="annual"
+                              checked={selectedPackage?.identifier === 'annual'}
+                              onChange={() => setSelectedPackage({
+                                identifier: 'annual',
+                                storeProduct: offering.annual?.webBillingProduct
+                              })}
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`annual-package`} className="text-sm text-muted-foreground">
+                              Select this plan
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
