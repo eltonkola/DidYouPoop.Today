@@ -72,7 +72,7 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
           messages: [
             {
               role: "system",
-              content: "You are a health expert specializing in digestive health. Analyze the user's poop data and provide a detailed health summary. Focus on patterns, consistency, and potential health implications. Format the response with clear headings and bullet points for better readability."
+              content: "You are a health expert specializing in digestive health. Analyze the user's poop data and provide a detailed health summary. Format the response with clear headings and bullet points for better readability. Use markdown format with # for main headings, ## for subheadings, and - for bullet points."
             },
             {
               role: "user",
@@ -84,10 +84,12 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
       });
 
       const data = await response.json();
-      // Format the response to make it more readable
-      const rawResponse = data.choices[0].message.content;
+      
+      // Log both raw and formatted response
+      console.log('Raw AI Response:', data.choices[0].message.content);
+
       // Format the response with proper spacing and bullet points
-      const formattedResponse = rawResponse
+      const formattedResponse = data.choices[0].message.content
         .replace(/\n\n/, '\n\n\n')  // Add extra spacing between sections
         .replace(/\+ ([^\n]+)/g, '- $1')  // Convert + lists to - lists
         .replace(/\* ([^\n]+)/g, '- $1')  // Convert * lists to - lists;
