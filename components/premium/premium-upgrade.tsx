@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
-import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser, isRevenueCatReady } from '@/lib/revenuecat';
 import { Package, Offering } from '@revenuecat/purchases-js';
 import { ReactNode } from 'react';
 
