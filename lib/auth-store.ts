@@ -20,14 +20,24 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
       updateUser: (user: AuthUser | null) => {
-        set({ user, error: null });
+        // Transform Supabase user to AuthUser if user exists
+        const authUser = user ? {
+          ...user,
+          subscription_tier: 'free' // Default to free tier
+        } : null;
+        set({ user: authUser, error: null });
       },
       updateUserPremiumStatus: async (userId: string, isPremium: boolean) => {
         try {
           await authService.updateUserPremiumStatus(userId, isPremium);
           const user = await authService.getCurrentUser();
           if (user) {
-            set({ user });
+            // Transform Supabase user to AuthUser
+            const authUser = {
+              ...user,
+              subscription_tier: user.subscription_tier || 'free'
+            };
+            set({ user: authUser });
           }
         } catch (error) {
           console.error('Error updating user premium status:', error);
@@ -46,8 +56,14 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Missing user ID');
           }
 
+          // Transform Supabase user to AuthUser
+          const authUser = {
+            ...currentUser,
+            subscription_tier: 'free' // Default to free tier
+          };
+
           // First set the user in the store
-          set({ user: currentUser });
+          set({ user: authUser });
 
           // Then initialize RevenueCat with current user
           await initializeRevenueCat(currentUser.id);
@@ -59,9 +75,16 @@ export const useAuthStore = create<AuthState>()(
             try {
               if (session?.user) {
                 const user = await authService.getCurrentUser();
-                updateUser(user);
-                // Reinitialize RevenueCat when user signs in
-                await initializeRevenueCat(session.user.id);
+                if (user) {
+                  // Transform Supabase user to AuthUser
+                  const authUser = {
+                    ...user,
+                    subscription_tier: user.subscription_tier || 'free'
+                  };
+                  updateUser(authUser);
+                  // Reinitialize RevenueCat when user signs in
+                  await initializeRevenueCat(session.user.id);
+                }
               } else {
                 updateUser(null);
                 // Cleanup RevenueCat when user signs out
