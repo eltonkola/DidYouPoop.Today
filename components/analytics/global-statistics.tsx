@@ -92,15 +92,21 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   if (loading) {
     return (
       <div className="container mx-auto py-8">
-        <Card className="w-full max-w-md">
+        <Card>
           <CardHeader>
-          <Globe className="w-5 h-5 text-blue-500" />
-            <CardTitle>Global Statistics</CardTitle>
+            <div className="flex items-center gap-2">
+              <Globe className="w-6 h-6 text-blue-500 animate-spin" />
+              <CardTitle>Loading Global Statistics</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center space-x-2">
-              <BarChart3 className="w-6 h-6 animate-spin" />
-              <span>Loading global statistics...</span>
+            <div className="flex items-center justify-center h-48">
+              <div className="text-center">
+                <BarChart3 className="w-8 h-8 animate-spin mx-auto" />
+                <p className="mt-2 text-muted-foreground">
+                  Analyzing global poop data...
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -111,12 +117,20 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   if (error) {
     return (
       <div className="container mx-auto py-8">
-        <Card className="w-full max-w-md">
+        <Card>
           <CardHeader>
-            <CardTitle>Global Statistics</CardTitle>
+            <div className="flex items-center gap-2">
+              <Globe className="w-6 h-6 text-red-500" />
+              <CardTitle>Global Statistics</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-red-500">{error}</p>
+            <div className="text-center">
+              <p className="text-red-500 mb-2">{error}</p>
+              <p className="text-muted-foreground">
+                Please try refreshing the page or contact support if the issue persists.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -124,7 +138,25 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   }
 
   if (!stats) {
-    return null;
+    return (
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Globe className="w-6 h-6 text-gray-400" />
+              <CardTitle>Global Statistics</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center">
+              <p className="text-muted-foreground">
+                No global statistics available yet.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Calculate some derived statistics
@@ -142,7 +174,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-medium">Total Users</h3>
@@ -156,7 +188,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
                 <h3 className="text-sm font-medium">Daily Average Poops</h3>
                 <p className="mt-1 text-2xl font-semibold">{stats.dailyAverage.poops.toFixed(1)}</p>
               </div>
-              <BarChart3 className="w-6 h-6" />
+              <BarChart3 className="w-6 h-6 text-orange-500" />
             </div>
 
             <div className="flex justify-between items-center">
@@ -164,8 +196,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
                 <h3 className="text-sm font-medium">Happy Poop Rate</h3>
                 <p className="mt-1 text-2xl font-semibold">{moodPercentage.toFixed(1)}%</p>
               </div>
-              <TrendingUp className="w-6 h-6" />
-            </div>
+              <TrendingUp className="w-6 h-6 text-green-500" />
 
             <div className="flex justify-between items-center">
               <div>
