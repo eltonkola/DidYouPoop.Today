@@ -91,7 +91,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="container mx-auto py-8">
         <Card className="w-full max-w-md">
           <CardHeader>
           <Globe className="w-5 h-5 text-blue-500" />
@@ -110,7 +110,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="container mx-auto py-8">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Global Statistics</CardTitle>
@@ -133,7 +133,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   const consistencyScore = Math.round((stats.consistencyScores.filter(score => score >= 80).length / stats.consistencyScores.length) * 100);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="container mx-auto py-8">
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
