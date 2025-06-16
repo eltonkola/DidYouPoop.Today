@@ -84,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
           set({ error: error as Error });
           return () => {};
         }
+      }
     }),
     {
       name: 'auth-storage',
