@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Clock, Leaf } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Leaf, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface GlobalStats {
