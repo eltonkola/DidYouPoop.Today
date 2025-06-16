@@ -25,22 +25,43 @@ export default function ExtraFeaturesPage() {
           Premium Features
         </h1>
 
+        {/* AI Poop and Health Expert Insights */}
+        <div className="w-full mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-purple-500" />
+            <h2 className="text-2xl font-semibold">AI Poop and Health Expert Insights</h2>
+          </div>
+          <AIHealthSummary isPremium={true} />
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2">
           {/* Advanced Analytics */}
-          <AdvancedAnalytics />
-
-          {/* AI Poop and Health Expert Insights */}
-          <div className="w-full">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <h2 className="text-2xl font-semibold">AI Poop and Health Expert Insights</h2>
-            </div>
-            <AIHealthSummary isPremium={true} />
-          </div>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-500" />
+                <CardTitle>Advanced Analytics</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AdvancedAnalytics />
+            </CardContent>
+          </Card>
 
           {/* Global Statistics */}
-          <GlobalStatistics isPremium={true} />
-          
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-blue-500" />
+                <CardTitle>Global Statistics</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <GlobalStatistics isPremium={true} />
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
     </div>
   );
 }
