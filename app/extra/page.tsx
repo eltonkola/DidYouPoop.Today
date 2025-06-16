@@ -41,20 +41,14 @@ export default function ExtraFeaturesPage() {
 
 
 
-          {/* Expert Insights */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-yellow-500" />
-                <CardTitle>Expert Insights</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <AIHealthSummary isPremium={isPremium} />
-              </div>
-            </CardContent>
-          </Card>
+          {/* AI Poop and Health Expert Insights */}
+          <div className="w-full">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-purple-500" />
+              <h2 className="text-2xl font-semibold">AI Poop and Health Expert Insights</h2>
+            </div>
+            <AIHealthSummary isPremium={true} />
+          </div>
 
           {/* Global Statistics */}
           <Card>
