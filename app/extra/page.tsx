@@ -49,17 +49,7 @@ export default function ExtraFeaturesPage() {
           </Card>
 
           {/* Global Statistics */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-500" />
-                <CardTitle>Global Statistics</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <GlobalStatistics isPremium={true} />
-            </CardContent>
-          </Card>
+          <GlobalStatistics isPremium={true} />
         </div>
       </motion.div>
     </div>
