@@ -284,8 +284,8 @@ export function PremiumUpgrade() {
       // Get the correct package from offerings
       const offering = offerings[0];
       const packageToPurchase = selectedPackage?.identifier === 'monthly' 
-        ? offering.monthly?.webBillingProduct 
-        : offering.annual?.webBillingProduct;
+        ? offering.monthly
+        : offering.annual;
 
         console.log('packageToPurchase:', packageToPurchase);
 
@@ -294,13 +294,8 @@ export function PremiumUpgrade() {
         throw new Error('Package not found');
       }
 
-      // Purchase with the correct package
-      const purchaseOptions = {
-        package: packageToPurchase,
-        defaultPurchaseOption: packageToPurchase.defaultPurchaseOption
-      };
 
-      await purchasePackage(purchaseOptions);
+      await purchasePackage(packageToPurchase);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
