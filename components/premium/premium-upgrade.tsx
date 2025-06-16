@@ -39,6 +39,25 @@ interface StoreProduct {
     periodType?: string;
     numberOfUnits?: number;
   }[];
+  defaultPurchaseOption?: {
+    id: string;
+    priceId: string;
+    base: {
+      periodDuration: string;
+      period: {
+        number: number;
+        unit: string;
+      };
+      cycleCount: number;
+      price: {
+        amount: number;
+        amountMicros: number;
+        currency: string;
+        formattedPrice: string;
+      };
+    };
+    trial?: any;
+  };
 }
 
 // Constants for common identifiers
@@ -275,8 +294,13 @@ export function PremiumUpgrade() {
         throw new Error('Package not found');
       }
 
-      // Purchase the package directly
-      await purchasePackage(packageToPurchase);
+      // Purchase with the correct package
+      const purchaseOptions = {
+        package: packageToPurchase,
+        defaultPurchaseOption: packageToPurchase.defaultPurchaseOption
+      };
+
+      await purchasePackage(purchaseOptions);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
