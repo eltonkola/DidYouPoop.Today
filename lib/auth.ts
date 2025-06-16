@@ -2,12 +2,13 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 export interface AuthUser extends User {
-  subscription_tier?: 'free' | 'premium';
+  subscription_tier: 'free' | 'premium';
+  error?: any;
 }
 
 export const authService = {
   // Sign up with email and password
-  async signUp(email: string, password: string, fullName?: string) {
+  async signUp(email: string, password: string, fullName?: string): Promise<{ user: AuthUser | null; session: any; error: any }> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Authentication is not available. Please configure Supabase.');
     }
@@ -32,7 +33,7 @@ export const authService = {
           id: data.user.id,
           email: data.user.email!,
           full_name: fullName || null,
-          subscription_tier: 'premium', // Default to premium for registered users
+          subscription_tier: 'free' as const, // Default to free tier for registered users
         });
 
       if (profileError) {
@@ -40,7 +41,13 @@ export const authService = {
       }
     }
 
-    return data;
+    // Add error property to data
+    const result = {
+      ...data,
+      error: null
+    };
+
+    return result as { user: AuthUser | null; session: any; error: any };
   },
 
   // Sign in with email and password
@@ -91,7 +98,7 @@ export const authService = {
       if (!user) return null;
 
       // Return user with default subscription tier if profile fetch fails
-      let subscriptionTier = 'premium';
+      let subscriptionTier: 'free' | 'premium' = 'free';
       
       try {
         // Longer timeout for profile fetch
@@ -118,7 +125,7 @@ export const authService = {
             });
           }
         } else if (profile) {
-          subscriptionTier = profile.subscription_tier;
+          subscriptionTier = profile.subscription_tier as 'free' | 'premium';
         }
       } catch (error) {
         // Only log profile fetch errors in development
