@@ -118,25 +118,33 @@ export function PremiumUpgrade() {
   // Helper function to get formatted price from Package
   const getFormattedPrice = (pkg: Package | null): string => {
     if (!pkg) return 'Loading...';
-    return pkg.priceString || `$${typeof pkg.price === 'number' ? pkg.price.toFixed(2) : pkg.price}`;
+    
+    // Try to get price from different properties
+    const price = pkg.storeProduct?.price || pkg.storeProduct?.priceString || pkg.price || pkg.priceString;
+    
+    if (typeof price === 'number') {
+      return `$${price.toFixed(2)}`;
+    }
+    
+    return price || 'Loading...';
   };
 
   // Helper function to get period from product
-  const getPeriod = (pkg: Package | null): string => {
-    if (!pkg) {
+  const getPeriod = (product: Package['storeProduct'] | undefined): string => {
+    if (!product) {
       return 'Monthly';
     }
 
     // Check subscriptionPeriods first
-    if (pkg.subscriptionPeriods?.length) {
-      const period = pkg.subscriptionPeriods[0];
+    if (product.subscriptionPeriods?.length) {
+      const period = product.subscriptionPeriods[0];
       if (period?.periodType === 'MONTH') return 'Monthly';
       if (period?.periodType === 'YEAR') return 'Yearly';
     }
 
     // Check period string format
-    if (pkg.subscriptionPeriod?.periodType === 'MONTH') return 'Monthly';
-    if (pkg.subscriptionPeriod?.periodType === 'YEAR') return 'Yearly';
+    if (product.subscriptionPeriod?.periodType === 'MONTH') return 'Monthly';
+    if (product.subscriptionPeriod?.periodType === 'YEAR') return 'Yearly';
 
     return 'Monthly';
   };
