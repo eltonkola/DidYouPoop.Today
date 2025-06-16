@@ -8,7 +8,6 @@ import { GlobalStatistics } from '@/components/analytics/global-statistics';
 import { motion } from 'framer-motion';
 import { usePoopStore } from '@/lib/store';
 import { AIHealthSummary } from '@/components/ai-health-summary';
-import { Leaderboard } from '@/components/analytics/leaderboard';
 
 export default function ExtraFeaturesPage() {
   const { user } = useAuthStore();
@@ -54,19 +53,6 @@ export default function ExtraFeaturesPage() {
               <div className="space-y-4">
                 <AIHealthSummary isPremium={isPremium} />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Leaderboard */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-yellow-500" />
-                <CardTitle>Leaderboard</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Leaderboard />
             </CardContent>
           </Card>
 
