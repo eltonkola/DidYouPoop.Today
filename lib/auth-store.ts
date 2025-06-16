@@ -39,37 +39,51 @@ export const useAuthStore = create<AuthState>()(
           throw new Error('Supabase client not initialized');
         }
 
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        
-        if (!currentUser?.id) {
-          console.error('Missing user ID');
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          
+          if (!currentUser?.id) {
+            throw new Error('Missing user ID');
+          }
+
+          // First set the user in the store
+          set({ user: currentUser });
+
+          // Then initialize RevenueCat with current user
+          await initializeRevenueCat(currentUser.id);
+
+          // Set up Supabase auth state listener
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            const { updateUser } = useAuthStore.getState();
+            
+            try {
+              if (session?.user) {
+                const user = await authService.getCurrentUser();
+                updateUser(user);
+                // Reinitialize RevenueCat when user signs in
+                await initializeRevenueCat(session.user.id);
+              } else {
+                updateUser(null);
+                // Cleanup RevenueCat when user signs out
+                await reinitializeRevenueCat();
+              }
+            } catch (error) {
+              console.error('Error updating auth state:', error);
+              set({ error: error as Error });
+            }
+          });
+
+          return () => {
+            subscription.unsubscribe();
+            // Cleanup RevenueCat when component unmounts
+            reinitializeRevenueCat();
+          };
+
+        } catch (error) {
+          console.error('Error during auth initialization:', error);
+          set({ error: error as Error });
           return () => {};
         }
-
-        // Initialize RevenueCat with current user
-        await initializeRevenueCat(currentUser.id);
-
-        // Set up Supabase auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          const { updateUser } = useAuthStore.getState();
-          
-          try {
-            if (session?.user) {
-              const user = await authService.getCurrentUser();
-              updateUser(user);
-            } else {
-              updateUser(null);
-            }
-          } catch (error) {
-            console.error('Error updating auth state:', error);
-          }
-        });
-
-        // Return cleanup function
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
     }),
     {
       name: 'auth-storage',
