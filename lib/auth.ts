@@ -41,17 +41,18 @@ export const authService = {
       }
     }
 
-    // Add error property to data
-    const result = {
+    return {
       ...data,
-      error: null
+      error: null,
+      user: data.user ? {
+        ...data.user,
+        subscription_tier: 'free'
+      } : null
     };
-
-    return result as { user: AuthUser | null; session: any; error: any };
   },
 
   // Sign in with email and password
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string): Promise<{ user: AuthUser | null; session: any; error: any }> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Authentication is not available. Please configure Supabase.');
     }
@@ -62,11 +63,22 @@ export const authService = {
     });
 
     if (error) throw error;
-    return data;
+
+    // Get user profile to determine premium status
+    const profile = await this.getUserProfile(data.user!.id);
+    const subscriptionTier = profile?.subscription_tier || 'free';
+
+    return {
+      ...data,
+      user: {
+        ...data.user,
+        subscription_tier: subscriptionTier
+      }
+    };
   },
 
   // Sign out
-  async signOut() {
+  async signOut(): Promise<void> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Authentication is not available. Please configure Supabase.');
     }
@@ -148,7 +160,7 @@ export const authService = {
   },
 
   // Create user profile if it doesn't exist (non-blocking)
-  async createUserProfile(user: User) {
+  async createUserProfile(user: User): Promise<void> {
     if (!isSupabaseConfigured() || !supabase) return;
     
     try {
@@ -158,7 +170,7 @@ export const authService = {
           id: user.id,
           email: user.email!,
           full_name: user.user_metadata?.full_name || null,
-          subscription_tier: 'premium',
+          subscription_tier: 'free',
         }, {
           onConflict: 'id'
         });
@@ -174,7 +186,7 @@ export const authService = {
   },
 
   // Get user profile
-  async getUserProfile(userId: string) {
+  async getUserProfile(userId: string): Promise<any> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Authentication is not available. Please configure Supabase.');
     }
@@ -189,11 +201,28 @@ export const authService = {
     return data;
   },
 
+  // Update user's premium status
+  async updateUserPremiumStatus(userId: string, isPremium: boolean): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        subscription_tier: isPremium ? 'premium' : 'free',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (error) throw error;
+  },
+
   // Update user profile
   async updateProfile(userId: string, updates: {
     full_name?: string;
     avatar_url?: string;
-  }) {
+  }): Promise<any> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Authentication is not available. Please configure Supabase.');
     }
@@ -213,25 +242,18 @@ export const authService = {
   },
 
   // Check if user is premium
-  async isPremiumUser(userId: string): Promise<boolean> {
-    if (!isSupabaseConfigured() || !supabase) return false;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.log('Error checking premium status:', error);
-        return false;
-      }
-
-      return data?.subscription_tier === 'premium';
-    } catch (error) {
-      console.log('Error checking premium status:', error);
-      return false;
+  async isUserPremium(userId: string): Promise<boolean> {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Authentication is not available. Please configure Supabase.');
     }
-  },
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.subscription_tier === 'premium';
+  }
 };
