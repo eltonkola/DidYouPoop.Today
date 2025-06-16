@@ -65,7 +65,7 @@ export default function ExtraFeaturesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <GlobalStatistics />
+              <GlobalStatistics isPremium={true} />
             </CardContent>
           </Card>
         </div>

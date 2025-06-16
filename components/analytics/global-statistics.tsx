@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, Clock, Leaf } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/lib/auth-store';
 
 interface GlobalStats {
   totalUsers: number;
@@ -28,12 +27,13 @@ interface GlobalStats {
     average: number;
     longest: number;
   };
-  moodPercentage: number;
-  consistencyScore: number;
 }
 
-export function GlobalStatistics() {
-  const { user } = useAuthStore();
+interface GlobalStatisticsProps {
+  isPremium: boolean;
+}
+
+export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,8 +41,8 @@ export function GlobalStatistics() {
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
-        if (!user) {
-          setError('Please sign in to view global statistics');
+        if (!isPremium) {
+          setError('Global statistics are available to premium users only');
           setLoading(false);
           return;
         }
@@ -87,7 +87,7 @@ export function GlobalStatistics() {
     };
 
     fetchGlobalStats();
-  }, [user]);
+  }, [isPremium]);
 
   if (loading) {
     return (

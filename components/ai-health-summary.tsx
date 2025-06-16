@@ -28,27 +28,8 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
   const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   useEffect(() => {
-    const checkPremiumStatus = async () => {
-      if (!isRevenueCatConfigured()) {
-        setIsPremiumChecked(true);
-        setIsPremiumUser(false);
-        return;
-      }
-
-      try {
-        const subscription = await getUserSubscription();
-        setIsPremiumUser(!!subscription?.isPremium);
-      } catch (error) {
-        console.error('Error checking premium status:', error);
-        setIsPremiumUser(false);
-      } finally {
-        setIsPremiumChecked(true);
-      }
-    };
-
-    if (isPremium) {
-      checkPremiumStatus();
-    }
+    setIsPremiumUser(isPremium);
+    setIsPremiumChecked(true);
   }, [isPremium]);
 
   const analyzePoopData = async () => {
@@ -139,7 +120,7 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
     <Card className="p-6 space-y-4">
       <CardContent>
         <div className="flex flex-col gap-4">
-          {isPremiumUser ? (
+          {isPremium ? (
             <>
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Health Summary</h2>
