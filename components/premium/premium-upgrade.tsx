@@ -5,282 +5,457 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Crown, Sparkles, Check, Loader2, Star, BarChart3, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
-import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser, isRevenueCatReady } from '@/lib/revenuecat';
+import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser } from '@/lib/revenuecat';
 import { Package, Offering } from '@revenuecat/purchases-js';
+import { ReactNode } from 'react';
 
-// Type for offerings state
-interface OfferingsState {
-  monthly: Package | null;
-  annual: Package | null;
+// Extended Package interface with our additional properties
+interface ExtendedPackage extends Package {
+  storeProduct?: StoreProduct;
 }
+
+// Type definitions
+interface StoreProduct {
+  title?: string;
+  name?: string;
+  displayName?: string;
+  description?: string;
+  summary?: string;
+  localizedDescription?: string;
+  price?: number | string;
+  price_string?: string;
+  displayPrice?: string;
+  period?: string;
+  subscriptionPeriod?: string;
+  subscription_period?: string;
+  duration?: string;
+  identifier?: string;
+  subscriptionPeriods?: {
+    period?: string;
+    periodType?: string;
+    numberOfUnits?: number;
+  }[];
+}
+
+// Constants for common identifiers
+const COMMON_PRODUCTS = {
+  '$rc_monthly': {
+    title: 'Monthly Premium',
+    description: 'Get monthly access to premium features'
+  },
+  '$rc_annual': {
+    title: 'Annual Premium',
+    description: 'Get yearly access to premium features'
+  }
+};
+
+// Helper function to get period
+const getPeriod = (product: StoreProduct | undefined): string => {
+  if (!product) {
+    console.log('Product is undefined');
+    return 'Monthly';
+  }
+  
+  // Log all available period properties
+  console.log('Product period properties:', {
+    id: product.identifier,
+    subscription_period: product.subscription_period,
+    period: product.period,
+    subscriptionPeriod: product.subscriptionPeriod,
+    duration: product.duration,
+    subscriptionPeriods: product.subscriptionPeriods
+  });
+  
+  // Try different period formats
+  // First check the subscriptionPeriods array if it exists
+  if (product.subscriptionPeriods?.length) {
+    const period = product.subscriptionPeriods[0];
+    if (period) {
+      console.log('Found period in subscriptionPeriods:', period);
+      if (period.periodType === 'MONTH' || period.periodType === 'MONTHLY') {
+        return 'Monthly';
+      } else if (period.periodType === 'YEAR' || period.periodType === 'YEARLY') {
+        return 'Yearly';
+      }
+    }
+  }
+  
+  // Then check other period properties
+  const period = product.subscription_period || 
+                product.subscriptionPeriod || 
+                product.period || 
+                product.duration;
+  
+  if (!period) {
+    console.log('No period found');
+    return 'Monthly';
+  }
+  
+  console.log('Raw period:', period);
+  
+  // Convert period string to human-readable format
+  if (period.includes('P1M') || period.includes('month')) return 'Monthly';
+  if (period.includes('P1Y') || period.includes('year')) return 'Yearly';
+  
+  return period;
+};
+
+// Helper function to get formatted price
+const getFormattedPrice = (product: StoreProduct | undefined): string => {
+  if (!product) {
+    console.log('Product is undefined');
+    return 'N/A';
+  }
+  
+  // Log all available price properties
+  console.log('Product price properties:', {
+    id: product.identifier,
+    price: product.price,
+    price_string: product.price_string,
+    displayPrice: product.displayPrice,
+    priceNumber: typeof product.price === 'string' ? parseFloat(product.price as string) : product.price,
+    priceType: typeof product.price
+  });
+  
+  // Try different price formats
+  let price: number | undefined;
+  if (typeof product.price === 'string') {
+    price = parseFloat(product.price);
+  } else if (typeof product.price === 'number') {
+    price = product.price;
+  } else if (product.price_string) {
+    price = parseFloat(product.price_string);
+  } else if (product.displayPrice) {
+    price = parseFloat(product.displayPrice);
+  }
+  
+  if (!price || isNaN(price)) {
+    console.log('No valid price found');
+    return 'N/A';
+  }
+  
+  const period = getPeriod(product);
+  
+  if (period === 'Monthly') {
+    return `$${price.toFixed(2)}/month`;
+  } else if (period === 'Yearly') {
+    const yearlyPrice = price;
+    const monthlyPrice = yearlyPrice / 12;
+    return `$${yearlyPrice.toFixed(2)}/year ($${monthlyPrice.toFixed(2)}/month)`;
+  }
+  
+  return `$${price.toFixed(2)}`;
+};
+
+// Helper function to get title
+const getPackageTitle = (pkg: ExtendedPackage): string => {
+  if (!pkg) return 'Unknown Package';
+  
+  const product = pkg.storeProduct;
+  if (!product) return pkg.identifier || 'Unknown Package';
+  
+  const productTitle = product.title || product.name || product.displayName;
+  if (productTitle) return productTitle;
+  
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly Premium';
+  } else if (period === 'Yearly') {
+    return 'Annual Premium (Save 20%)';
+  }
+  return pkg.identifier || 'Unknown Package';
+};
+
+// Helper function to get description
+const getPackageDescription = (pkg: ExtendedPackage): string => {
+  if (!pkg) return '';
+  
+  const product = pkg.storeProduct;
+  if (!product) return '';
+  
+  const productDescription = product.description || product.summary || product.localizedDescription;
+  if (productDescription) return productDescription;
+  
+  const period = getPeriod(product);
+  if (period === 'Monthly') {
+    return 'Monthly subscription with all premium features';
+  } else if (period === 'Yearly') {
+    return 'Annual subscription with all premium features (20% off)';
+  }
+  return 'Premium subscription with all features';
+};
 
 export function PremiumUpgrade() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [offerings, setOfferings] = useState<OfferingsState | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPremium, setIsPremium] = useState(false);
+  const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [monthlyPrice, setMonthlyPrice] = useState<string>('');
+  const [annualPrice, setAnnualPrice] = useState<string>('');
+  const [monthlyName, setMonthlyName] = useState<string>('');
+  const [annualName, setAnnualName] = useState<string>('');
+  const [monthlyDescription, setMonthlyDescription] = useState<string>('');
+  const [annualDescription, setAnnualDescription] = useState<string>('');
 
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        // Initialize RevenueCat
-        await initializeRevenueCat(user?.id);
-        
-        // Get offerings
-        const fetchedOfferings = await getOfferings();
-        if (!fetchedOfferings || fetchedOfferings.length === 0) {
-          throw new Error('No offerings found');
-        }
-        
-        // Transform offerings to our state format
-        const transformedOfferings: OfferingsState = {
-          monthly: null,
-          annual: null
-        };
+    // Initialize RevenueCat SDK and fetch offerings
+    if (user) {
+      initializeRevenueCat(user.id).catch(error => {
+        console.error('Failed to initialize RevenueCat:', error);
+        toast.error('Failed to initialize premium features');
+      });
 
-        // Get the first offering (RevenueCat usually returns a single offering)
-        const mainOffering = fetchedOfferings[0];
-        if (mainOffering) {
-          if (mainOffering.monthly) {
-            transformedOfferings.monthly = mainOffering.monthly;
-          }
-          if (mainOffering.annual) {
-            transformedOfferings.annual = mainOffering.annual;
-          }
+      // Fetch offerings
+      getOfferings().then(fetchedOfferings => {
+        setOfferings(fetchedOfferings);
+        setLoading(false);
+        console.log('Fetched offerings:', fetchedOfferings);
+
+        if (fetchedOfferings.length > 0) {
+          const offering = fetchedOfferings[0];
+          setMonthlyPrice(offering.monthly?.webBillingProduct.currentPrice.formattedPrice || '');
+          setAnnualPrice(offering.annual?.webBillingProduct.currentPrice.formattedPrice || '');
+          setMonthlyName(offering.monthly?.webBillingProduct.title || '');
+          setAnnualName(offering.annual?.webBillingProduct.title || '');
+          setMonthlyDescription(offering.monthly?.webBillingProduct.description || '');
+          setAnnualDescription(offering.annual?.webBillingProduct.description || '');
         }
 
-        setOfferings(transformedOfferings);
-        
-        // Check if user is premium
-        const customerInfo = await getCustomerInfo();
-        setIsPremium(isPremiumUser(customerInfo));
-      } catch (error) {
-        console.error('Failed to initialize premium features:', error);
-        toast.error('Failed to load premium features');
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    // Only initialize if we have a user
-    if (user?.id) {
-      initialize();
+      }).catch(error => {
+        console.error('Failed to fetch offerings:', error);
+        toast.error('Failed to load premium plans');
+        setLoading(false);
+      });
     }
-  }, [user?.id]);
+  }, [user]);
 
   const handleUpgrade = async () => {
-    if (!selectedPackage) {
-      toast.error('Please select a package');
-      return;
-    }
-
-    if (!isRevenueCatReady()) {
-      toast.error('RevenueCat is not ready. Please try again.');
-      return;
-    }
-
     try {
-      setIsLoading(true);
-      
-      // Get customer info before purchase
+      if (!selectedPackage) {
+        toast.error('Please select a package first');
+        return;
+      }
+
+      // Get customer info
       const customerInfo = await getCustomerInfo();
       if (isPremiumUser(customerInfo)) {
         toast.info('You already have a premium subscription');
         return;
       }
 
-      // Purchase directly with selected package
-      await purchasePackage(selectedPackage);
+      // Purchase the selected package
+      await purchasePackage(selectedPackage as ExtendedPackage);
       toast.success('Premium subscription purchased successfully!');
-      router.refresh();
+      router.push('/premium/success');
     } catch (error: any) {
       if (error.userCancelled) {
         // User cancelled the purchase
-        toast.info('Purchase cancelled');
-      } else {
-        console.error('Purchase failed:', error);
-        toast.error(error.message || 'Failed to purchase premium subscription');
+        return;
       }
-    } finally {
-      setIsLoading(false);
+      console.error('Purchase failed:', error);
+      toast.error(error.message || 'Failed to purchase premium subscription');
     }
   };
 
-  const handlePackageSelect = (packageToSelect: Package | null) => {
-    setSelectedPackage(packageToSelect);
-  };
-
-  // Helper function to get formatted price from Package
-  const getFormattedPrice = (pkg: Package | null): string => {
-    if (!pkg) return 'Loading...';
-    
-    // Try to get price from different properties
-    const price = pkg.storeProduct?.price || pkg.storeProduct?.priceString || pkg.price || pkg.priceString;
-    
-    if (typeof price === 'number') {
-      return `$${price.toFixed(2)}`;
-    }
-    
-    return price || 'Loading...';
-  };
-
-  // Helper function to get period from product
-  const getPeriod = (product: Package['storeProduct'] | undefined): string => {
-    if (!product) {
-      return 'Monthly';
-    }
-
-    // Check subscriptionPeriods first
-    if (product.subscriptionPeriods?.length) {
-      const period = product.subscriptionPeriods[0];
-      if (period?.periodType === 'MONTH') return 'Monthly';
-      if (period?.periodType === 'YEAR') return 'Yearly';
-    }
-
-    // Check period string format
-    if (product.subscriptionPeriod?.periodType === 'MONTH') return 'Monthly';
-    if (product.subscriptionPeriod?.periodType === 'YEAR') return 'Yearly';
-
-    return 'Monthly';
-  };
+  const features = [
+    {
+      icon: BarChart3,
+      title: 'Advanced Analytics',
+      description: 'Detailed insights into your gut health patterns and trends',
+    },
+    {
+      icon: Calendar,
+      title: 'Cross-Device Sync',
+      description: 'Access your data from any device with cloud synchronization',
+    },
+    {
+      icon: TrendingUp,
+      title: 'Premium Insights',
+      description: 'AI-powered recommendations for better digestive health',
+    },
+    {
+      icon: Star,
+      title: 'Priority Support',
+      description: 'Get help faster with premium customer support',
+    },
+  ];
 
   return (
-    <div className="container mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col items-center gap-2">
-            <Crown className="w-12 h-12 text-yellow-500" />
-            <CardTitle className="text-2xl font-bold">Premium Upgrade</CardTitle>
-            <p className="text-center text-gray-600">
-              Unlock exclusive features and support the development of DidYouPoop.Today
-            </p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-2 text-6xl mb-4">
+          <Crown className="w-16 h-16 text-yellow-600" />
+          <Sparkles className="w-12 h-12 text-yellow-500" />
+        </div>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+          Upgrade to Premium
+        </h1>
+        <p className="text-xl text-muted-foreground">
+          Unlock advanced features and take your gut health tracking to the next level!
+        </p>
+      </div>
+
+      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 border-yellow-200 dark:border-yellow-800">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Crown className="w-6 h-6 text-yellow-600" />
+            <CardTitle className="text-2xl">Premium Plans</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
+        
+        <CardContent className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
             </div>
-          ) : isPremium ? (
-            <div className="flex flex-col items-center gap-4">
-              <Badge variant="default" className="px-4 py-2 bg-yellow-500 text-white">
-                <Check className="w-4 h-4 mr-2" />
-                Premium Member
-              </Badge>
-              <p className="text-center text-gray-600">
-                You already have a premium subscription. Thank you for supporting us!
-              </p>
-            </div>
-          ) : offerings?.monthly || offerings?.annual ? (
-            <div className="space-y-6">
-              {offerings?.monthly && (
-                <div key="monthly" className="flex flex-col items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <h3 className="text-lg font-semibold">Monthly Plan</h3>
-                  <p className="text-gray-600">Monthly subscription</p>
-                  <div className="text-3xl font-bold">
-                    {getFormattedPrice(offerings.monthly)}
-                  </div>
-                  <Button
-                    onClick={() => handlePackageSelect(offerings.monthly)}
-                    disabled={isLoading || !offerings.monthly}
-                    className="w-full"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : selectedPackage?.identifier === offerings.monthly?.identifier ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Selected
-                      </>
-                    ) : (
-                      'Select Monthly Plan'
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {offerings?.annual && (
-                <div key="annual" className="flex flex-col items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                  <h3 className="text-lg font-semibold">Annual Plan</h3>
-                  <p className="text-gray-600">Annual subscription</p>
-                  <div className="text-3xl font-bold">
-                    {getFormattedPrice(offerings.annual)}
-                  </div>
-                  <Button
-                    onClick={() => handlePackageSelect(offerings.annual)}
-                    disabled={isLoading || !offerings.annual}
-                    className="w-full"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : selectedPackage?.identifier === offerings.annual?.identifier ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Selected
-                      </>
-                    ) : (
-                      'Select Annual Plan'
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {/* Premium Features */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Premium Features</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-yellow-500" />
-                    <span>Access to all premium features</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-blue-500" />
-                    <span>Advanced analytics and insights</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-green-500" />
-                    <span>Custom reminders and notifications</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-purple-500" />
-                    <span>Priority support and updates</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Upgrade Button */}
-              <Button
-                onClick={handleUpgrade}
-                disabled={!selectedPackage || isLoading}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Upgrade to Premium'
-                )}
-              </Button>
+          ) : offerings.length === 0 ? (
+            <div className="text-center text-muted-foreground">
+              No premium plans available
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-4">
-              <AlertCircle className="w-8 h-8 text-red-500" />
-              <p className="text-center text-red-500">
-                No premium plans available. Please try again later.
-              </p>
+            <div className="space-y-6">
+              {offerings.map((offering, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-gray-800/50">
+                  <div className="space-y-4">
+                    {/* Monthly Plan */}
+                    {offering.monthly && (
+                      <div className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{monthlyName}</h4>
+                            <p className="text-sm text-muted-foreground">{monthlyDescription}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                              {monthlyPrice}
+                            </p>
+                            <Badge variant="default">Monthly</Badge>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id={`monthly-package`}
+                              name="package"
+                              value="monthly"
+                              checked={selectedPackage?.identifier === 'monthly'}
+                              onChange={() => setSelectedPackage({
+                                identifier: 'monthly',
+                                storeProduct: offering.monthly?.webBillingProduct
+                              })}
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`monthly-package`} className="text-sm text-muted-foreground">
+                              Select this plan
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Annual Plan */}
+                    {offering.annual && (
+                      <div className="p-4 border rounded-lg bg-white dark:bg-gray-900">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{annualName}</h4>
+                            <p className="text-sm text-muted-foreground">{annualDescription}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                              {annualPrice}
+                            </p>
+                            <Badge variant="default">Yearly</Badge>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id={`annual-package`}
+                              name="package"
+                              value="annual"
+                              checked={selectedPackage?.identifier === 'annual'}
+                              onChange={() => setSelectedPackage({
+                                identifier: 'annual',
+                                storeProduct: offering.annual?.webBillingProduct
+                              })}
+                              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                            />
+                            <label htmlFor={`annual-package`} className="text-sm text-muted-foreground">
+                              Select this plan
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">What's included:</h3>
+            <div className="grid gap-4">
+              {features.map((feature, index) => {
+                const IconComponent = feature.icon;
+                return (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <IconComponent className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{feature.title}</h4>
+                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span>Free features included</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Cancel anytime</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Secure payment processing</span>
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+          </div>
+
+          {offerings.length > 0 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <Button
+                  onClick={handleUpgrade}
+                  className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white"
+                  disabled={!selectedPackage}
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  {selectedPackage ? 'Upgrade to Selected Plan' : 'Please select a plan first'}
+                </Button>
+              </div>
+              {selectedPackage && (
+                <div className="text-center text-sm text-muted-foreground">
+                  You have selected: {selectedPackage.storeProduct?.title || selectedPackage.identifier}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
