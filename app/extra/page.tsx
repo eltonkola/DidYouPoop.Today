@@ -7,6 +7,7 @@ import { AdvancedAnalytics } from '@/components/analytics/advanced-analytics';
 import { GlobalStatistics } from '@/components/analytics/global-statistics';
 import { motion } from 'framer-motion';
 import { usePoopStore } from '@/lib/store';
+import { AIHealthSummary } from '@/components/ai-health-summary';
 
 export default function ExtraFeaturesPage() {
   const { user } = useAuthStore();
@@ -70,20 +71,9 @@ export default function ExtraFeaturesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Personalized health recommendations</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>AI-powered poop analysis</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Expert diet suggestions</span>
-                </li>
-              </ul>
+              <div className="space-y-4">
+                <AIHealthSummary isPremium={isPremium} />
+              </div>
             </CardContent>
           </Card>
 

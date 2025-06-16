@@ -96,11 +96,6 @@ export default function Home() {
 
       <Separator />
 
-      {/* AI Health Summary for Premium Users */}
-      {isPremium && <AIHealthSummary isPremium={isPremium} />}
-
-      <Separator />
-
       {/* Premium Banner for Free Users */}
       {!user && (
         <motion.div
