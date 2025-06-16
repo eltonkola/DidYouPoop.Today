@@ -10,6 +10,23 @@ import DOMPurify from 'isomorphic-dompurify';
 import { isRevenueCatConfigured } from '@/lib/revenuecat';
 import { getUserSubscription } from '@/lib/subscription';
 import { UserSubscription } from '@/lib/subscription';
+import type { ReactNode } from 'react';
+
+interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  children: ReactNode;
+}
+
+interface ListProps extends React.HTMLAttributes<HTMLUListElement> {
+  children: ReactNode;
+}
+
+interface ListItemProps extends React.HTMLAttributes<HTMLLIElement> {
+  children: ReactNode;
+}
+
+interface ParagraphProps extends React.HTMLAttributes<HTMLParagraphElement> {
+  children: ReactNode;
+}
 
 // Configure marked to handle our formatting
 // We're using ReactMarkdown now, no need for marked configuration
@@ -22,14 +39,12 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
   const { entries } = usePoopStore();
   const { user } = useAuthStore();
   const [healthSummary, setHealthSummary] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPremiumChecked, setIsPremiumChecked] = useState(false);
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   useEffect(() => {
-    setIsPremiumUser(isPremium);
-    setIsPremiumChecked(true);
+    if (isPremium) {
+      analyzePoopData();
+    }
   }, [isPremium]);
 
   const analyzePoopData = async () => {
@@ -61,13 +76,6 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
         5. Overall gut health trends
         
         Provide actionable recommendations based on the data.`
-      });
-
-      // Log the data being sent to Groq
-      console.log('Sending to Groq:', {
-        entries: formattedEntries,
-        prompt: `Analyze this poop data and provide a health summary:
-        ${JSON.stringify(formattedEntries, null, 2)}`
       });
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -107,7 +115,6 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
       const cleanHtml = DOMPurify.sanitize(formattedResponse);
       
       setHealthSummary(cleanHtml);
-      setIsExpanded(true);
     } catch (error) {
       console.error('Error analyzing poop data:', error);
       setHealthSummary('Failed to generate health summary. Please try again later.');
@@ -122,58 +129,39 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
         <div className="flex flex-col gap-4">
           {isPremium ? (
             <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Health Summary</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                >
-                  {isExpanded ? 'Collapse' : 'Expand'}
-                </Button>
-              </div>
+              <h2 className="text-lg font-semibold">Health Summary</h2>
 
-              {isExpanded && (
-                <div className="prose prose-sm max-w-none">
-                  {healthSummary ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-2xl font-bold mb-4">{children}</h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-xl font-semibold mb-3">{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-lg font-semibold mb-2">{children}</h3>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
-                        ),
-                        li: ({ children }) => (
-                          <li className="list-item">{children}</li>
-                        ),
-                        p: ({ children }) => (
-                          <p className="mb-2">{children}</p>
-                        )
-                      }}
-                    >
-                      {healthSummary}
-                    </ReactMarkdown>
-                  ) : (
-                    <Button onClick={analyzePoopData} disabled={isLoading}>
-                      {isLoading ? 'Analyzing...' : 'Get My Health Summary'}
-                    </Button>
-                  )}
-                </div>
-              )}
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                      <h1 {...props} className="text-2xl font-bold mb-4">{children}</h1>
+                    ),
+                    h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                      <h2 {...props} className="text-xl font-semibold mb-3">{children}</h2>
+                    ),
+                    h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                      <h3 {...props} className="text-lg font-semibold mb-2">{children}</h3>
+                    ),
+                    ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
+                      <ul {...props} className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
+                    ),
+                    li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => (
+                      <li {...props} className="list-item">{children}</li>
+                    ),
+                    p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
+                      <p {...props} className="mb-2">{children}</p>
+                    )
+                  }}
+                >
+                  {healthSummary}
+                </ReactMarkdown>
+              </div>
             </>
           ) : (
             <div className="text-muted-foreground">
-              AI Poop Data Analysis is available for premium users only. 
-              <br />
-              <span className="text-sm">Get premium to unlock your poop's secrets!</span>
+              <p>Health Summary is available to premium users only.</p>
             </div>
           )}
         </div>

@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import { usePoopStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Calendar, Clock, Leaf } from 'lucide-react';
+import { BarChart3, TrendingUp, Calendar, Clock, Globe,  Leaf } from 'lucide-react';
 import { format } from 'date-fns';
-import { PoopEntry } from '@/lib/store';
-
+import { PoopEntry } from '@/lib/store';;
 interface AnalyticsData {
   averageDuration: number;
   averageFiber: number;

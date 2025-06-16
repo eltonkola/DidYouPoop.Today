@@ -139,7 +139,7 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
           <CardTitle>Global Statistics</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2">
             <div>
               <div className="flex justify-between items-center">
                 <div>
