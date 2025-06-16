@@ -11,28 +11,7 @@ import { AIHealthSummary } from '@/components/ai-health-summary';
 
 export default function ExtraFeaturesPage() {
   const { user } = useAuthStore();
-  const isPremium = user?.subscription_tier === 'premium';
-
-  if (!isPremium) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Crown className="w-6 h-6 text-yellow-600" />
-              <CardTitle>Premium Features</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground">
-              These features are available to premium subscribers only.
-              Please upgrade to premium to access them.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const isPremium = true; // Always show AI analysis in extra page
 
   return (
     <div className="container mx-auto py-8">
