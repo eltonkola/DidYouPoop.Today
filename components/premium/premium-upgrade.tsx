@@ -195,6 +195,7 @@ export function PremiumUpgrade() {
   const [purchaseLink, setPurchaseLink] = useState<string | null>(null);
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [monthlyPrice, setMonthlyPrice] = useState<string>('');
   const [annualPrice, setAnnualPrice] = useState<string>('');
