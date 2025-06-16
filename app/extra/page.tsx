@@ -59,31 +59,7 @@ export default function ExtraFeaturesPage() {
             </CardContent>
           </Card>
 
-          {/* Global Statistics */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-purple-500" />
-                <CardTitle>Global Statistics</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Compare with global averages</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Regional trends analysis</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  <span>Country-specific insights</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
+
 
           {/* Expert Insights */}
           <Card>
