@@ -1,11 +1,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { type Request } from 'https://deno.land/std@0.177.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -14,18 +15,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-      global: {
-        headers: {
-          Authorization: req.headers.get('Authorization') ?? '',
+    // Create Supabase client with service role key
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
         },
-      },
-    });
+      }
+    );
 
-    // Get the current user from the request
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+    // Parse query parameters
+    const url = new URL(req.url);
+    const period = url.searchParams.get('period') || 'day'; // day, week, total
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+
+    // Get the user ID from the request
+    const userId = req.headers.get('x-user-id');
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'No user ID provided' }), {
         status: 401,
         headers: {
           ...corsHeaders,
@@ -34,10 +45,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse query parameters
-    const url = new URL(req.url);
-    const period = url.searchParams.get('period') || 'day'; // day, week, total
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+    // Create Supabase client with service role key
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      }
+    );
 
     // Get today's date
     const today = new Date();
@@ -71,10 +90,15 @@ Deno.serve(async (req) => {
       .from('poop_entries')
       .select('user_id, score, created_at')
       .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString());
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: true });
 
     if (entriesError) {
-      return new Response(JSON.stringify({ error: entriesError.message }), {
+      console.error('Error fetching poop entries:', entriesError);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to fetch poop entries',
+        details: entriesError.message
+      }), {
         status: 500,
         headers: {
           ...corsHeaders,
@@ -109,12 +133,25 @@ Deno.serve(async (req) => {
 
     // Get top users and user's stats
     const topUsers = statsArray.slice(0, limit);
-    const currentUserStats = statsArray.find(s => s.user_id === session.user.id) || {
-      user_id: session.user.id,
+    const currentUserStats = statsArray.find(s => s.user_id === userId) || {
+      user_id: userId,
       poops: 0,
       averageScore: 0,
       position: statsArray.length + 1,
     };
+
+    return new Response(JSON.stringify({
+      period,
+      topUsers,
+      currentUser: currentUserStats,
+      userPosition: currentUserStats.position,
+    }), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
 
     return new Response(JSON.stringify({
       period,

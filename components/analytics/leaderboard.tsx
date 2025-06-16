@@ -35,6 +35,9 @@ export function Leaderboard() {
         }
 
         const { data, error } = await supabase.functions.invoke('leaderboard', {
+          headers: {
+            'x-user-id': user.id,
+          },
           body: {
             period,
             limit: 10,
