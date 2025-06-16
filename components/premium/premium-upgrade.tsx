@@ -275,13 +275,8 @@ export function PremiumUpgrade() {
         throw new Error('Package not found');
       }
 
-      // Purchase with the correct package and its default purchase option
-      const purchaseOptions = {
-        package: packageToPurchase,
-        defaultPurchaseOption: packageToPurchase.defaultPurchaseOption
-      };
-
-      await purchasePackage(purchaseOptions);
+      // Purchase the package directly
+      await purchasePackage(packageToPurchase);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
