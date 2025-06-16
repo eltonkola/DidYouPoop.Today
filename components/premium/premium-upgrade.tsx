@@ -241,21 +241,38 @@ export function PremiumUpgrade() {
   }, [user]);
 
   const handleUpgrade = async () => {
-    try {
-      if (!selectedPackage) {
-        toast.error('Please select a package first');
-        return;
-      }
+    if (!selectedPackage) {
+      toast.error('Please select a package');
+      return;
+    }
 
-      // Get customer info
+    if (!isRevenueCatReady()) {
+      toast.error('RevenueCat is not ready. Please try again.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Get customer info before purchase
       const customerInfo = await getCustomerInfo();
       if (isPremiumUser(customerInfo)) {
         toast.info('You already have a premium subscription');
         return;
       }
 
-      // Purchase the selected package
-      await purchasePackage(selectedPackage as ExtendedPackage);
+      // Get the correct package from offerings
+      const offering = offerings[0];
+      const packageToPurchase = selectedPackage?.identifier === 'monthly' 
+        ? offering.monthly?.webBillingProduct 
+        : offering.annual?.webBillingProduct;
+
+      if (!packageToPurchase) {
+        throw new Error('Package not found');
+      }
+
+      // Purchase with the correct package
+      await purchasePackage(packageToPurchase);
       toast.success('Premium subscription purchased successfully!');
       router.push('/premium/success');
     } catch (error: any) {
