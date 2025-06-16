@@ -43,12 +43,9 @@ export default function ExtraFeaturesPage() {
           </Card>
 
           {/* Global Statistics */}
-          <Card>
-            <CardContent>
              <GlobalStatistics isPremium={true} />
-            </CardContent>
-          </Card>
-        </div>
+       
+          </div>
       </motion.div>
     </div>
   );
