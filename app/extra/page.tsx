@@ -36,10 +36,18 @@ export default function ExtraFeaturesPage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Advanced Analytics */}
-          <AdvancedAnalytics />
-         
+          <Card>
+            <CardContent>
+              <AdvancedAnalytics />
+            </CardContent>
+          </Card>
+
           {/* Global Statistics */}
-          <GlobalStatistics isPremium={true} />
+          <Card>
+            <CardContent>
+             <GlobalStatistics isPremium={true} />
+            </CardContent>
+          </Card>
         </div>
       </motion.div>
     </div>
