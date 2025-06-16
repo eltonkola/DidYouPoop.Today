@@ -27,19 +27,7 @@ export default function ExtraFeaturesPage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Advanced Analytics */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-500" />
-                <CardTitle>Advanced Analytics</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <AdvancedAnalytics />
-            </CardContent>
-          </Card>
-
-
+          <AdvancedAnalytics />
 
           {/* AI Poop and Health Expert Insights */}
           <div className="w-full">
@@ -51,19 +39,8 @@ export default function ExtraFeaturesPage() {
           </div>
 
           {/* Global Statistics */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-500" />
-                <CardTitle>Global Statistics</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <GlobalStatistics isPremium={true} />
-            </CardContent>
-          </Card>
-        </div>
-      </motion.div>
+          <GlobalStatistics isPremium={true} />
+          
     </div>
   );
 }
