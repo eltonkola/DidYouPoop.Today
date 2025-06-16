@@ -36,18 +36,8 @@ export default function ExtraFeaturesPage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Advanced Analytics */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-500" />
-                <CardTitle>Advanced Analytics</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <AdvancedAnalytics />
-            </CardContent>
-          </Card>
-
+          <AdvancedAnalytics />
+         
           {/* Global Statistics */}
           <GlobalStatistics isPremium={true} />
         </div>

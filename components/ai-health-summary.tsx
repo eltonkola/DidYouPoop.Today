@@ -132,31 +132,40 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
               <h2 className="text-lg font-semibold">Health Summary</h2>
 
               <div className="prose prose-sm max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-                      <h1 {...props} className="text-2xl font-bold mb-4">{children}</h1>
-                    ),
-                    h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-                      <h2 {...props} className="text-xl font-semibold mb-3">{children}</h2>
-                    ),
-                    h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-                      <h3 {...props} className="text-lg font-semibold mb-2">{children}</h3>
-                    ),
-                    ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
-                      <ul {...props} className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
-                    ),
-                    li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => (
-                      <li {...props} className="list-item">{children}</li>
-                    ),
-                    p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-                      <p {...props} className="mb-2">{children}</p>
-                    )
-                  }}
-                >
-                  {healthSummary}
-                </ReactMarkdown>
+                {isLoading ? (
+                  <div className="flex justify-center items-center min-h-[200px]">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Analyzing your health data...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                        <h1 {...props} className="text-2xl font-bold mb-4">{children}</h1>
+                      ),
+                      h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                        <h2 {...props} className="text-xl font-semibold mb-3">{children}</h2>
+                      ),
+                      h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+                        <h3 {...props} className="text-lg font-semibold mb-2">{children}</h3>
+                      ),
+                      ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
+                        <ul {...props} className="list-disc pl-5 space-y-2 mb-4">{children}</ul>
+                      ),
+                      li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => (
+                        <li {...props} className="list-item">{children}</li>
+                      ),
+                      p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
+                        <p {...props} className="mb-2">{children}</p>
+                      )
+                    }}
+                  >
+                    {healthSummary}
+                  </ReactMarkdown>
+                )}
               </div>
             </>
           ) : (

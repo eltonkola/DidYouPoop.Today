@@ -133,51 +133,46 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
   const consistencyScore = Math.round((stats.consistencyScores.filter(score => score >= 80).length / stats.consistencyScores.length) * 100);
 
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Card className="w-full max-w-md">
+    <div className="grid gap-6 md:grid-cols-2">
+      <Card>
         <CardHeader>
-          <CardTitle>Global Statistics</CardTitle>
+          <div className="flex items-center gap-2">
+            <Globe className="w-6 h-6 text-blue-500" />
+            <CardTitle>Global Statistics</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-sm font-medium">Total Users</h3>
-                  <p className="mt-1 text-3xl font-semibold">{stats.totalUsers.toLocaleString()}</p>
-                </div>
-                <div className="w-6 h-6" />
+          <div className="grid gap-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-medium">Total Users</h3>
+                <p className="mt-1 text-3xl font-semibold">{stats.totalUsers.toLocaleString()}</p>
               </div>
+              <div className="w-6 h-6" />
             </div>
 
-            <div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-sm font-medium">Daily Average Poops</h3>
-                  <p className="mt-1 text-2xl font-semibold">{stats.dailyAverage.poops.toFixed(1)}</p>
-                </div>
-                <BarChart3 className="w-6 h-6" />
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-medium">Daily Average Poops</h3>
+                <p className="mt-1 text-2xl font-semibold">{stats.dailyAverage.poops.toFixed(1)}</p>
               </div>
+              <BarChart3 className="w-6 h-6" />
             </div>
 
-            <div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-sm font-medium">Happy Poop Rate</h3>
-                  <p className="mt-1 text-2xl font-semibold">{moodPercentage.toFixed(1)}%</p>
-                </div>
-                <TrendingUp className="w-6 h-6" />
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-medium">Happy Poop Rate</h3>
+                <p className="mt-1 text-2xl font-semibold">{moodPercentage.toFixed(1)}%</p>
               </div>
+              <TrendingUp className="w-6 h-6" />
             </div>
 
-            <div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-sm font-medium">Consistency Score</h3>
-                  <p className="mt-1 text-2xl font-semibold">{consistencyScore}%</p>
-                </div>
-                <Clock className="w-6 h-6" />
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-medium">Consistency Score</h3>
+                <p className="mt-1 text-2xl font-semibold">{consistencyScore}%</p>
               </div>
+              <Clock className="w-6 h-6" />
             </div>
           </div>
         </CardContent>
