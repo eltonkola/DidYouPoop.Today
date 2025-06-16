@@ -197,13 +197,14 @@ export function GlobalStatistics({ isPremium }: GlobalStatisticsProps) {
                 <p className="mt-1 text-2xl font-semibold">{moodPercentage.toFixed(1)}%</p>
               </div>
               <TrendingUp className="w-6 h-6 text-green-500" />
+            </div>
 
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-medium">Consistency Score</h3>
                 <p className="mt-1 text-2xl font-semibold">{consistencyScore}%</p>
               </div>
-              <Clock className="w-6 h-6" />
+              <Clock className="w-6 h-6 text-blue-500" />
             </div>
           </div>
         </CardContent>
