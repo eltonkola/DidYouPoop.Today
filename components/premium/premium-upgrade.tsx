@@ -10,68 +10,6 @@ import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { initializeRevenueCat, getOfferings, getCustomerInfo, purchasePackage, isPremiumUser, isRevenueCatReady } from '@/lib/revenuecat';
 import { Package, Offering } from '@revenuecat/purchases-js';
-// Type for RevenueCat StoreProduct
-interface StoreProduct {
-  price: number | string;
-  priceString?: string;
-  displayPrice?: string;
-  subscriptionPeriod?: {
-    periodType: 'MONTH' | 'YEAR' | string;
-  };
-  subscriptionPeriods?: {
-    periodType: 'MONTH' | 'YEAR' | string;
-  }[];
-}
-
-// Constants for common identifiers
-const COMMON_PRODUCTS = {
-  '$rc_monthly': {
-    title: 'Monthly Premium',
-    description: 'Get monthly access to premium features'
-  },
-  '$rc_annual': {
-    title: 'Annual Premium',
-    description: 'Get yearly access to premium features'
-  }
-};
-
-// Helper function to get period
-const getPeriod = (product: StoreProduct | undefined): string => {
-  if (!product) {
-    return 'Monthly';
-  }
-
-  // Check subscriptionPeriods first
-  if (product.subscriptionPeriods?.length) {
-    const period = product.subscriptionPeriods[0];
-    if (period?.periodType === 'MONTH') return 'Monthly';
-    if (period?.periodType === 'YEAR') return 'Yearly';
-  }
-
-  // Check period string format
-  if (product.subscriptionPeriod?.periodType === 'MONTH') return 'Monthly';
-  if (product.subscriptionPeriod?.periodType === 'YEAR') return 'Yearly';
-
-  return 'Monthly';
-};
-
-// Helper function to get formatted price
-const getFormattedPrice = (storeProduct: StoreProduct | null): string => {
-  if (!storeProduct) return 'Loading...';
-  return storeProduct.priceString || `$${typeof storeProduct.price === 'number' ? storeProduct.price.toFixed(2) : storeProduct.price}`;
-};
-
-// Type for package data
-interface PackageData {
-  identifier: string;
-  storeProduct: {
-    price: number | string;
-    priceString?: string;
-    displayPrice?: string;
-    subscriptionPeriod?: {
-      periodType: 'MONTH' | 'YEAR' | string;
-    };
-}
 
 // Type for offerings state
 interface OfferingsState {
@@ -83,7 +21,7 @@ export function PremiumUpgrade() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [offerings, setOfferings] = useState<OfferingsState | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<PackageData | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
@@ -173,8 +111,34 @@ export function PremiumUpgrade() {
     }
   };
 
-  const handlePackageSelect = (packageToSelect: PackageData | null) => {
+  const handlePackageSelect = (packageToSelect: Package | null) => {
     setSelectedPackage(packageToSelect);
+  };
+
+  // Helper function to get formatted price from Package
+  const getFormattedPrice = (pkg: Package | null): string => {
+    if (!pkg) return 'Loading...';
+    return pkg.priceString || `$${typeof pkg.price === 'number' ? pkg.price.toFixed(2) : pkg.price}`;
+  };
+
+  // Helper function to get period from product
+  const getPeriod = (pkg: Package | null): string => {
+    if (!pkg) {
+      return 'Monthly';
+    }
+
+    // Check subscriptionPeriods first
+    if (pkg.subscriptionPeriods?.length) {
+      const period = pkg.subscriptionPeriods[0];
+      if (period?.periodType === 'MONTH') return 'Monthly';
+      if (period?.periodType === 'YEAR') return 'Yearly';
+    }
+
+    // Check period string format
+    if (pkg.subscriptionPeriod?.periodType === 'MONTH') return 'Monthly';
+    if (pkg.subscriptionPeriod?.periodType === 'YEAR') return 'Yearly';
+
+    return 'Monthly';
   };
 
   return (
@@ -211,7 +175,7 @@ export function PremiumUpgrade() {
                   <h3 className="text-lg font-semibold">Monthly Plan</h3>
                   <p className="text-gray-600">Monthly subscription</p>
                   <div className="text-3xl font-bold">
-                    {getFormattedPrice(offerings.monthly?.storeProduct)}
+                    {getFormattedPrice(offerings.monthly)}
                   </div>
                   <Button
                     onClick={() => handlePackageSelect(offerings.monthly)}
@@ -240,7 +204,7 @@ export function PremiumUpgrade() {
                   <h3 className="text-lg font-semibold">Annual Plan</h3>
                   <p className="text-gray-600">Annual subscription</p>
                   <div className="text-3xl font-bold">
-                    {getFormattedPrice(offerings.annual?.storeProduct)}
+                    {getFormattedPrice(offerings.annual)}
                   </div>
                   <Button
                     onClick={() => handlePackageSelect(offerings.annual)}
