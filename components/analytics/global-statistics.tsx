@@ -28,6 +28,8 @@ interface GlobalStats {
     average: number;
     longest: number;
   };
+  moodPercentage: number;
+  consistencyScore: number;
 }
 
 export function GlobalStatistics() {
@@ -66,7 +68,16 @@ export function GlobalStatistics() {
           return;
         }
 
-        setStats(data);
+        // Calculate derived statistics from the received data
+        const moodPercentage = (data.moodDistribution.happy / 
+          (data.moodDistribution.happy + data.moodDistribution.neutral + data.moodDistribution.sad)) * 100;
+        const consistencyScore = Math.round((data.consistencyScores.filter((score: number) => score >= 80).length / data.consistencyScores.length) * 100);
+
+        setStats({
+          ...data,
+          moodPercentage,
+          consistencyScore
+        });
       } catch (err) {
         console.error('Error fetching global stats:', err);
         setError('Failed to load global statistics. Please try again later.');

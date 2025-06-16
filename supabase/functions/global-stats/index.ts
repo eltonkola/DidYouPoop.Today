@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 interface PoopEntry {
   id: string;
@@ -38,132 +38,161 @@ interface GlobalStats {
   };
 }
 
-export async function calculateGlobalStats(entries: PoopEntry[]): Promise<GlobalStats> {
-  const totalEntries = entries.length;
-  const userCount = new Set(entries.map(entry => entry.user_id)).size;
-  const totalDays = Math.max(1, Math.ceil(totalEntries / userCount));
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+  'Access-Control-Max-Age': '86400'
+};
 
-  // Calculate daily averages
-  const dailyAverage = {
-    poops: totalEntries / totalDays,
-    duration: entries.reduce((sum, entry) => sum + entry.duration, 0) / totalEntries,
-    fiber: entries.reduce((sum, entry) => sum + entry.fiber, 0) / totalEntries,
-  };
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
 
-  // Calculate mood distribution
-  const moodDistribution = {
-    happy: entries.filter(e => e.mood === 'happy').length,
-    neutral: entries.filter(e => e.mood === 'neutral').length,
-    sad: entries.filter(e => e.mood === 'sad').length,
-  };
-
-  // Calculate time of day distribution
-  const timeOfDay = {
-    morning: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 5 && time < 12;
-    }).length,
-    afternoon: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 12 && time < 18;
-    }).length,
-    evening: entries.filter(e => {
-      const time = new Date(e.created_at).getHours();
-      return time >= 18 || time < 5;
-    }).length,
-  };
-
-  // Calculate consistency scores
-  const consistencyScores = entries.map(e => e.score);
-
-  // Calculate streak statistics
-  const streakStats = {
-    average: 0,
-    longest: 0,
-  };
-
-  // Calculate streaks for each user
-  const userStreaks = new Map<string, { current: number; longest: number }>();
-
-  entries.forEach(entry => {
-    const userId = entry.user_id;
-    if (!userStreaks.has(userId)) {
-      userStreaks.set(userId, { current: 1, longest: 1 });
-    } else {
-      const streak = userStreaks.get(userId)!;
-      const prevEntry = entries.find(e => 
-        e.user_id === userId && 
-        new Date(e.created_at).getTime() < new Date(entry.created_at).getTime()
-      );
-
-      if (prevEntry && 
-          new Date(entry.created_at).getTime() - new Date(prevEntry.created_at).getTime() <= 86400000) {
-        streak.current++;
-        streak.longest = Math.max(streak.longest, streak.current);
-      } else {
-        streak.current = 1;
-      }
-    }
-  });
-
-  // Calculate average and longest streak
-  const streakData = Array.from(userStreaks.values());
-  streakStats.average = streakData.reduce((sum, streak) => sum + streak.longest, 0) / streakData.length;
-  streakStats.longest = Math.max(...streakData.map(streak => streak.longest));
-
-  return {
-    totalUsers: userCount,
-    dailyAverage,
-    moodDistribution,
-    timeOfDay,
-    consistencyScores,
-    streakStats,
-  };
-}
-
-export default async function handler(req: Request) {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: {
+        headers: {
+          Authorization: req.headers.get('Authorization') ?? ''
+        }
+      }
+    });
 
-    if (!supabaseUrl || !supabaseKey) {
-      return new Response(JSON.stringify({ error: 'Supabase configuration missing' }), {
+    const { data: entries, error } = await supabase.from('poop_entries').select('*').order('date', {
+      ascending: true
+    });
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return new Response(JSON.stringify({
+        error: 'Failed to fetch poop entries'
+      }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch all entries
-    const { data: entries, error: entriesError } = await supabase
-      .from('poop_entries')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (entriesError) {
-      return new Response(JSON.stringify({ error: entriesError.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
     if (!entries || entries.length === 0) {
-      return new Response(JSON.stringify({ error: 'No entries found' }), {
+      return new Response(JSON.stringify({
+        error: 'No poop entries found',
+        details: 'The poop_entries table is empty or no entries match the query'
+      }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
-    const stats = await calculateGlobalStats(entries);
-    return new Response(JSON.stringify({ data: stats }), {
-      headers: { 'Content-Type': 'application/json' },
+    // Calculate statistics
+    const totalEntries = entries.length;
+    const userCount = new Set(entries.map((entry: PoopEntry) => entry.user_id)).size;
+    const totalDays = Math.max(1, Math.ceil(totalEntries / userCount));
+
+    // Calculate daily averages
+    const dailyAverage = {
+      poops: totalEntries / totalDays,
+      duration: entries.reduce((sum: number, entry: PoopEntry) => sum + entry.duration, 0) / totalEntries,
+      fiber: entries.reduce((sum: number, entry: PoopEntry) => sum + entry.fiber, 0) / totalEntries,
+    };
+
+    // Calculate mood distribution
+    const moodDistribution = {
+      happy: entries.filter((e: PoopEntry) => e.mood === 'happy').length,
+      neutral: entries.filter((e: PoopEntry) => e.mood === 'neutral').length,
+      sad: entries.filter((e: PoopEntry) => e.mood === 'sad').length,
+    };
+
+    // Calculate time of day distribution
+    const timeOfDay = {
+      morning: entries.filter((e: PoopEntry) => {
+        const time = new Date(e.created_at).getHours();
+        return time >= 5 && time < 12;
+      }).length,
+      afternoon: entries.filter((e: PoopEntry) => {
+        const time = new Date(e.created_at).getHours();
+        return time >= 12 && time < 18;
+      }).length,
+      evening: entries.filter((e: PoopEntry) => {
+        const time = new Date(e.created_at).getHours();
+        return time >= 18 || time < 5;
+      }).length,
+    };
+
+    // Calculate consistency scores
+    const consistencyScores = entries.map((entry: PoopEntry) => entry.score);
+
+    // Calculate streak stats
+    const streakStats = {
+      average: 0,
+      longest: 0,
+    };
+
+    // Calculate streaks for each user
+    const userStreaks = new Map<string, { current: number; longest: number }>();
+
+    entries.forEach((entry: PoopEntry) => {
+      const userId = entry.user_id;
+      if (!userStreaks.has(userId)) {
+        userStreaks.set(userId, { current: 1, longest: 1 });
+      } else {
+        const streak = userStreaks.get(userId)!;
+        const prevEntry = entries.find((e: PoopEntry) => 
+          e.user_id === userId && 
+          new Date(e.created_at).getTime() < new Date(entry.created_at).getTime()
+        );
+
+        if (prevEntry && 
+            new Date(entry.created_at).getTime() - new Date(prevEntry.created_at).getTime() <= 86400000) {
+          streak.current++;
+          streak.longest = Math.max(streak.longest, streak.current);
+        } else {
+          streak.current = 1;
+        }
+      }
+    });
+
+    // Calculate average and longest streak
+    const streakData = Array.from(userStreaks.values());
+    streakStats.average = streakData.reduce((sum: number, streak) => sum + streak.longest, 0) / streakData.length;
+    streakStats.longest = Math.max(...streakData.map(streak => streak.longest));
+
+    // Create response with calculated statistics
+    const stats: GlobalStats = {
+      totalUsers: userCount,
+      dailyAverage,
+      moodDistribution,
+      timeOfDay,
+      consistencyScores,
+      streakStats,
+    };
+
+    return new Response(JSON.stringify(stats), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Function error:', error);
+    return new Response(JSON.stringify({
+      error: error?.message ?? String(error)
+    }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
   }
-}
+});
