@@ -225,6 +225,10 @@ export function PremiumUpgrade() {
           setAnnualName(offering.annual?.webBillingProduct.title || '');
           setMonthlyDescription(offering.monthly?.webBillingProduct.description || '');
           setAnnualDescription(offering.annual?.webBillingProduct.description || '');
+
+          console.log('Fetched monthly defaultPurchaseOption:', offering.monthly?.webBillingProduct?.defaultPurchaseOption);
+          console.log('Fetched annual defaultPurchaseOption:', offering.annual?.webBillingProduct?.defaultPurchaseOption);
+
         }
 
 
