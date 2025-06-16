@@ -98,22 +98,33 @@ export const getOfferings = async (): Promise<Offering[]> => {
   }
 };
 
-export const purchasePackage = async (packageToPurchase: any) => {
+export const purchasePackage = async (packageToPurchase: Package) => {
+  // Ensure RevenueCat is initialized
   if (!isConfigured || !purchasesInstance) {
+    console.error('RevenueCat not configured');
     throw new Error('RevenueCat not configured');
   }
 
   try {
     console.log('Attempting to purchase package:', packageToPurchase.identifier);
-    const { customerInfo } = await purchasesInstance.purchasePackage(packageToPurchase);
+    
+    // Get customer info before purchase
+    const customerInfo = await purchasesInstance.getCustomerInfo();
+    console.log('Current customer info:', customerInfo);
+    
+    // Make the purchase
+    const { customerInfo: updatedInfo } = await purchasesInstance.purchasePackage(packageToPurchase);
+    
     console.log('Purchase successful');
-    return customerInfo;
+    return updatedInfo;
   } catch (error: any) {
     console.error('Purchase failed:', error);
     
-    // Handle specific error types
-    if (error.userCancelled) {
+    // Handle specific error cases
+    if (error?.userCancelled) {
       throw { userCancelled: true, message: 'Purchase was cancelled' };
+    } else if (error?.code === 'PURCHASE_ERROR') {
+      throw { userCancelled: false, message: 'Purchase failed. Please try again.' };
     }
     
     throw error;
