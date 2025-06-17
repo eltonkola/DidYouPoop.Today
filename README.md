@@ -1,5 +1,9 @@
 # DidYouPoop.today
 
+[![Bolt Logo](https://github.com/eltonkola/DidYouPoop.Today/blob/main/public/bolt.png?raw=true)](https://bolt.new)
+
+This project was created for the Bolt Hackathon using Bolt's powerful tools and APIs. 🚀
+
 The fun and functional way to track your gut health with poop scoring, streaks, and achievements!
 
 ## Features
