@@ -77,6 +77,7 @@ The app is configured for deployment on Netlify. See `NETLIFY_DEPLOYMENT_GUIDE.m
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
+6. Or dont, this is a vibe code project
 
 ## License
 
