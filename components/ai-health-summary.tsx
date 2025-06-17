@@ -82,7 +82,7 @@ export function AIHealthSummary({ isPremium }: AIHealthSummaryProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer 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',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
         },
         body: JSON.stringify({
           model: "meta-llama/llama-4-scout-17b-16e-instruct",
