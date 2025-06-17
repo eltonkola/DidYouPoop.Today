@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from './supabase';
 import { authService, AuthUser } from './auth';
-import { isPremiumUser, getCustomerInfo, initializeRevenueCat, isRevenueCatConfigured } from './revenuecat';
+import { isPremiumUser, getCustomerInfo, initializeRevenueCat, isRevenueCatConfigured, reinitializeRevenueCat } from './revenuecat';
 
 interface AuthState {
   user: AuthUser | null;
@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>()(
         // Transform Supabase user to AuthUser if user exists
         const authUser = user ? {
           ...user,
-          subscription_tier: 'free' // Default to free tier
+          subscription_tier: 'free' as const // Default to free tier
         } : null;
         set({ user: authUser, error: null });
       },
@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>()(
                   // Transform Supabase user to AuthUser
                   const authUser = {
                     ...user,
-                    subscription_tier: user.subscription_tier || 'free'
+                    subscription_tier: user.subscription_tier as 'free' | 'premium' || 'free'
                   };
                   updateUser(authUser);
                   // Reinitialize RevenueCat when user signs in
@@ -106,6 +106,26 @@ export const useAuthStore = create<AuthState>()(
           console.error('Error during auth initialization:', error);
           set({ error: error as Error });
           return () => {};
+        }
+      },
+      signOut: async () => {
+        if (!supabase) {
+          throw new Error('Supabase client not initialized');
+        }
+
+        try {
+          // Sign out from Supabase
+          await authService.signOut();
+          
+          // Update store state
+          set({ user: null, error: null });
+          
+          // Cleanup RevenueCat
+          await reinitializeRevenueCat();
+        } catch (error) {
+          console.error('Error during sign out:', error);
+          set({ error: error as Error });
+          throw error;
         }
       }
     }),
