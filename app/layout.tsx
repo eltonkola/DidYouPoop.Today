@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { Navigation } from '@/components/navigation';
 import { AuthGuard } from '@/components/auth/auth-guard';
+import Footer from '@/components/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -66,6 +67,7 @@ export default function RootLayout({
                 {children}
               </AuthGuard>
             </main>
+            <Footer />
           </div>
           <Toaster />
         </ThemeProvider>
