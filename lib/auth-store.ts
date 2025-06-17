@@ -127,6 +127,66 @@ export const useAuthStore = create<AuthState>()(
           set({ error: error as Error });
           throw error;
         }
+      },
+      signIn: async (email: string, password: string) => {
+        if (!supabase) {
+          throw new Error('Supabase client not initialized');
+        }
+
+        try {
+          set({ isLoading: true, error: null });
+          const { user, session, error } = await authService.signIn(email, password);
+          
+          if (error) throw error;
+          
+          if (user && session) {
+            // Transform Supabase user to AuthUser
+            const authUser = {
+              ...user,
+              subscription_tier: user.subscription_tier || 'free'
+            };
+            
+            // Update store state
+            set({ user: authUser, isLoading: false, error: null });
+            
+            // Initialize RevenueCat with new user
+            await initializeRevenueCat(user.id);
+          }
+        } catch (error) {
+          console.error('Error during sign in:', error);
+          set({ error: error as Error, isLoading: false });
+          throw error;
+        }
+      },
+      signUp: async (email: string, password: string, fullName?: string) => {
+        if (!supabase) {
+          throw new Error('Supabase client not initialized');
+        }
+
+        try {
+          set({ isLoading: true, error: null });
+          const { user, session, error } = await authService.signUp(email, password, fullName);
+          
+          if (error) throw error;
+          
+          if (user && session) {
+            // Transform Supabase user to AuthUser
+            const authUser = {
+              ...user,
+              subscription_tier: user.subscription_tier || 'free'
+            };
+            
+            // Update store state
+            set({ user: authUser, isLoading: false, error: null });
+            
+            // Initialize RevenueCat with new user
+            await initializeRevenueCat(user.id);
+          }
+        } catch (error) {
+          console.error('Error during sign up:', error);
+          set({ error: error as Error, isLoading: false });
+          throw error;
+        }
       }
     }),
     {
